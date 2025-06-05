@@ -17,6 +17,7 @@ try:
     from excel_processor import ExcelAddressProcessor
     from address_parser import OptimizedAddressParser 
     from test_address import AddressTester  # Cambiado de test_improved a test_address
+    from automatismo import run_automation
 except ImportError as e:
     print(f"❌ Error importando módulos: {e}")
     print("   Asegúrese de que todos los módulos necesarios estén instalados.")
@@ -24,25 +25,9 @@ except ImportError as e:
 
 def main():
     try:
-        # Inicializar el procesador
-        processor = ExcelAddressProcessor()
-        
-        # Nombre del archivo Excel a procesar
-        excel_file = "Backlog250525-filtradocobertura.xlsx"
-        
-        print(f"\nIniciando procesamiento de: {excel_file}")
-        print("=" * 50)
-        
-        # Procesar el archivo
-        result = processor.process_excel_file(excel_file)
-        
-        if not result:
-            print("\n❌ Error: El procesamiento no se completó correctamente")
-            sys.exit(1)
-            
+        run_automation()
     except Exception as e:
         print(f"\n❌ Error inesperado: {str(e)}")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
