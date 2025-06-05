@@ -1,0 +1,23 @@
+
+var cursorMap = {'cursor_newoverview.png': [10,10], 
+                 'cursor_measure.png': [6,6], 
+                 'cursor_moveoverview.png': [13,13],
+                 'cursor_moveplotframe.png': [13,13],
+                 'cursor_movetrail.png': [13,13],
+                 'cursor_resize.png': [14,16],
+                 'cursor_rotate.png': [19,16],
+                 'cursor_trace.png': [17,16],
+                 'cursor_trail.png': [16,16],
+                 'cursor_pan.png' : [8,8],
+                 'cursor_zoom_in.png' : [7,7],
+                 'cursor_zoom_out.png' : [7,7],
+                 'cursor_line.png' : [16,16],
+                 'cursor_polyline.png' : [16,16],
+                 'cursor_freehand.png' : [16,16],
+                 'cursor_circle.png' : [16,16],
+                 'cursor_rectangle.png' : [16,16],
+                 'cursor_symbol.png' : [16,16],
+                 'cursor_textbox.png' : [16,16],
+                 'cursor_move.png' : [11,11],
+                 'cursor_measuredimension.png' : [7,7]
+                 };

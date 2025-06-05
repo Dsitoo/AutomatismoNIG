@@ -1,0 +1,234 @@
+tr.menubar {
+	height: 25px;
+}
+
+div.menubar {
+	border-width: 0px;
+	height: 25px;
+}
+
+div.menuitem {
+	background-color: rgb(249, 248, 247);
+	border-width: 1px;
+	border-style: solid;
+	border-color: rgb(102, 102, 102);
+	padding: 1px;
+}
+
+table.menuitem {
+	width: 1px;
+	border-width: 0px;
+	background-color: rgb(249, 248, 247);
+}
+
+table.menuitem * td {
+	padding: 1px;
+}
+
+table.menubar {
+	margin-top: 2px;
+	margin-left: 2px;
+}
+
+table.menubar * td {
+	padding: 0px;
+}
+
+
+tr.menunormal,td.menunormal {
+	height: 20px;
+	border-width: 0px;
+	cursor: default;
+	color: black;
+	padding: 1px;
+}
+
+tr.menuseperator {
+	height: 0px;
+	cursor: default;
+}
+
+tr.menunormal td.menuitem_left,tr.menudisabled td.menuitem_left {
+	padding: 1px 0px 1px 1px;
+	background-image: url("menu_image_background.gif");
+	border: 0px;
+}
+
+tr.menuseperator td.menuitem_left {
+	padding: 0px;
+	background-image: url("menu_image_background.gif");
+	border: 0px;
+}
+
+tr.menunormal td.menuitem_center,tr.menudisabled td.menuitem_center {
+	padding: 1px 0px 1px 8px;
+	border: 0px;
+}
+
+tr.menunormal td.menuitem_right,tr.menudisabled td.menuitem_right {
+	padding: 1px 5px 1px 4px;
+	border: 0px;
+}
+
+tr.menudisabled td,td.menudisabled {
+	height: 20px;
+	color: rgb(172,168,153);
+
+	border-width: 0px;
+	padding: 1px;
+	cursor: default;
+}
+
+tr.menumouseover,td.menumouseover {
+	height: 20px;
+	color: black;
+
+	background-color: rgb(182, 189, 219);
+	border-width: 1px;
+	border-color: rgb(10, 36, 106);
+	border-style: solid;
+	cursor: default;
+	padding: 0px;
+}
+
+tr.menumouseover td.menuitem_left,tr.menuclicked td.menuitem_left {
+	padding: 0px;
+	border-style: solid;
+	border-color: rgb(10, 36, 106);
+	border-width: 1px 0px 1px 1px;
+	background-image: url("menu_image_background_hl.gif");
+}
+
+tr.menumouseover td.menuitem_center,tr.menuclicked td.menuitem_center {
+	padding: 0px 0px 0px 8px;
+	border-style: solid;
+	border-color: rgb(10, 36, 106);
+	border-width: 1px 0px 1px 0px;
+}
+
+tr.menumouseover td.menuitem_right,tr.menuclicked td.menuitem_right {
+	padding: 0px 4px 0px 3px;
+	border-style: solid;
+	border-color: rgb(10, 36, 106);
+	border-width: 1px 1px 1px 0px;
+}
+
+tr.menuclicked,td.menuclicked {
+	height: 20px;
+	color: black;
+
+	background-color: rgb(182, 189, 219);
+	border-width: 1px;
+	border-color: rgb(102, 102, 102);
+	border-style: solid;
+	cursor: default;
+	padding: 0px;
+}
+
+td.menuclicked {
+	border-width: 1px 1px 0px 1px;
+	background-color: white;
+}
+
+div.menu_seperator {
+	height: 1px;
+	width: 90%;
+
+	border-top: 1px solid;
+	border-bottom: 0px;
+	border-color: rgb(166, 166, 166);
+	margin: 0px 0px 0px 7px;
+}
+
+tr.toolbar {
+	height: 26px;	
+}
+div.toolbar {
+	height: 26px;
+	background-image: url("toolbar_background.gif");
+	background-color: white;
+}
+
+div.toolbar * td, div.toolbar * span {
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.tbbutton_hover,.tbbutton_pressed,.tbbutton_checked,.tbbutton_checked_hover {
+	margin: 4px 2px 4px 2px;
+	color: black;
+	border-width: 1px;
+	border-style: solid;
+	cursor: default;
+	height: 16px;
+	padding: 1px;
+}
+
+.tbbutton,.tbbutton_disabled {
+	margin: 5px 3px 5px 3px;
+	color: black;
+	border-width: 0px;
+	border-style: solid;
+	cursor: default;
+	height: 16px;
+	padding: 1px;
+	background-color: transparent;
+}
+
+div.tbbutton * td.ddbclicklayer, div.tbbutton_disabled * td.ddbclicklayer {
+	padding: 2px 2px 2px 3px;
+}
+
+td.buttonlayer {
+	white-space: nowrap;	
+}
+div.tbbutton_hover * td.ddbclicklayer,div.tbbutton_pressed * td.ddbclicklayer {
+	padding: 2px;
+	border-color: rgb(10, 36, 106);
+	border-width: 0px 0px 0px 1px;
+	border-style: solid;
+}
+
+div.tbbutton_pressed * td.ddbclicklayer, div.tbbutton_pressed * td.ddbclicklayer {
+	background: rgb(133, 146, 181);
+}
+
+.tbbutton_hover {
+	background: rgb(182, 189, 219);
+	border-color: rgb(10, 36, 106);
+}
+
+.tbbutton_pressed {
+	color: white;
+	background: rgb(133, 146, 181);
+	border-color: rgb(10, 36, 106);
+}
+
+.tbbutton_checked,.tbbutton_checked_hover{
+	background: rgb(212, 213, 216);
+	border-color: rgb(10, 36, 106);
+}
+
+.tbcombo {
+	width: 160px;
+	text-align: left;
+	margin-left: 1px;
+	margin-right:1px;
+}
+
+table.menubar td.menumouseover {
+	padding: 0px;
+}
+
+table.menubar td.menuclicked {
+	padding: 0px;
+}
+
+table.menubar td.menunormal {
+	padding: 1px;
+}
+
+div.tbbutton_hover,div.tbbutton_pressed,div.tbbutton_checked,div.tbbutton_checked_hover {
+	-moz-box-sizing: content-box;
+	-webkit-box-sizing: content-box;
+}

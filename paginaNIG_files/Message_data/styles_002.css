@@ -1,0 +1,18 @@
+.messagebox {
+	width: 100%;
+	text-align: center;
+}
+
+.messagepanel {
+	width: 100%;
+	text-align: center;
+}
+
+.messageelement {
+	padding-top: 20px;
+	padding-left: 10px;
+}
+
+.button {
+	width: 60px;
+}

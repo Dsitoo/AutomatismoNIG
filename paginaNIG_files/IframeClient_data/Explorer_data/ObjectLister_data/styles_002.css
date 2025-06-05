@@ -1,0 +1,51 @@
+.white {
+	background: white;
+	white-space: normal;
+}
+
+.gray {
+	background: #dddddd;
+	white-space: pre;
+}
+
+table.explorer  {
+
+}
+
+table.explorer * td {
+	white-space:nowrap;
+	border: 1px solid lightgrey;
+	padding: 2px;
+}
+
+table.explorer thead {
+	background-color: white;
+	white-space:nowrap;
+}
+
+table.explorer * tr.selected {
+	background-color: rgb(49, 106, 197);
+}
+
+table.explorer tr.selected td {
+	color: white;
+}
+
+table.explorer * tr.hover {
+	background-color: rgb(220,220,220);
+}
+
+table.explorer tr.hover td {
+	color: black;
+}
+
+.width150 {
+	width: 150px;
+}
+
+table.detail_record * td {
+	padding: 1px;
+}
+table.detail_document * td {
+	padding: 1px;
+}

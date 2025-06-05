@@ -1,0 +1,10 @@
+div.toolBar {
+	width: inherit;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+div.menubar {
+	width: 100%;
+	white-space: nowrap;
+}

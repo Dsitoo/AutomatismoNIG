@@ -1,0 +1,8 @@
+.remove_button {
+	width:16px;
+	height:16px;
+}
+
+table.full_width * td {
+	padding: 2px;
+}

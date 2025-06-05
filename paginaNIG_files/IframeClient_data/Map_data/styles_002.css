@@ -1,0 +1,21 @@
+td.number {
+	font-weight: bold;
+}
+td.coord {
+	text-align: center;
+}
+td.distance {
+	text-align: right;
+}
+.flipIncludeInPlotButton {
+	visibility:hidden;
+	width:0;
+}
+
+table.measure_table * td {
+	padding: 2px;
+}
+
+table.full_width * td {
+	padding: 2px;
+}
