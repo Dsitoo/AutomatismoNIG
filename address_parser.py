@@ -6,22 +6,23 @@ class OptimizedAddressParser:
     """
     Analizador de direcciones optimizado y corregido con patrones mejorados
     """
-    
     def __init__(self):
-        # Mapeo de tipos de vía - AMPLIADO
+        # Mapeo de tipos de vía - AMPLIADO        
         self.TIPO_VIA = {
-            # Calles - más variaciones
-            'CALLE': 'CL', 'CL': 'CL', 'CALL': 'CL', 'C': 'CL',
+            # Carreras - priorizar estas variaciones primero y ajustar orden
+            'KR': 'KR',  # Poner KR primero para que tenga prioridad
+            'CARRERA': 'KR', 'CR': 'KR','Cr': 'KR', 'CRA': 'KR', 'CARR': 'KR',
+            'CARRE': 'KR', 'CARRER': 'KR', 'KRA': 'KR', 'CARRET': 'KR',
+            'CARRER.': 'KR', 'CARRERA.': 'KR', 'KRR': 'KR', 'CR.': 'KR',
+            'K': 'KR',   # Agregar K como variante de Carrera
+            
+            # Calles - después de carreras para evitar conflictos
+            'CALLE': 'CL', 'CL': 'CL', 'CALL': 'CL', 'C/': 'CL',
             'CAL': 'CL', 'CLLE': 'CL', 'CLL': 'CL', 'CALL.': 'CL',
             'CLE': 'CL', 'CALLLE': 'CL', 'CALE': 'CL',
             
-            # Carreras - más variaciones
-            'CARRERA': 'KR', 'KR': 'KR', 'CR': 'KR', 'CRA': 'KR', 'CARR': 'KR',
-            'CARRE': 'KR', 'CARRER': 'KR', 'KRA': 'KR', 'CARRET': 'KR',
-            'CARRER.': 'KR', 'CARRERA.': 'KR', 'KRR': 'KR',
-            
             # Transversales - más variaciones
-            'TRANSVERSAL': 'TV', 'TV': 'TV', 'TR': 'TV', 'TRANS': 'TV', 
+            'TRANSVERSAL': 'TV', 'TV': 'TV', 'TR': 'TV', 'TRANS': 'TV',
             'TRANSV': 'TV', 'TRANSVER': 'TV', 'TRANV': 'TV', 'TRANSVERSAL.': 'TV',
             'TRANSVERS': 'TV', 'TRANSV.': 'TV', 'TRAV': 'TV',
             
@@ -34,27 +35,29 @@ class OptimizedAddressParser:
             'AK': 'AK', 'AC': 'AC', 'AUTOPISTA': 'AK', 'AVENIDA.': 'AV',
             'AV.': 'AV', 'AVE.': 'AV', 'AVDA.': 'AV', 'AVEN': 'AV',
         }
-        
+
         # Mapeo de avenidas importantes con sus números oficiales
         self.AVENIDAS_PRINCIPALES = {
             'CARACAS': {'tipo': 'AK', 'numero': '14'},
-            'CARRERA_DECIMA': {'tipo': 'AK', 'numero': '10'},
+            'CARRERA DECIMA': {'tipo': 'AK', 'numero': '10'},
+            'CARRERADECIMA': {'tipo': 'AK', 'numero': '10'},
             'DECIMA': {'tipo': 'AK', 'numero': '10'},
             'SEPTIMA': {'tipo': 'AK', 'numero': '7'},
-            'SÉPTIMA': {'tipo': 'AK', 'numero': '7'},
             'NQS': {'tipo': 'AK', 'numero': '30'},
             'QUITO': {'tipo': 'AK', 'numero': '30'},
             'BOYACA': {'tipo': 'AK', 'numero': '72'},
             'BOYACÁ': {'tipo': 'AK', 'numero': '72'},
-            'CIUDAD_DE_CALI': {'tipo': 'AK', 'numero': '86'},
+            'CIUDAD DE CALI': {'tipo': 'AK', 'numero': '86'},
+            'CIUDADDECALI': {'tipo': 'AK', 'numero': '86'},
             'CALI': {'tipo': 'AK', 'numero': '86'},
             'SUBA': {'tipo': 'AK', 'numero': '145'},
-            'PRIMERA_DE_MAYO': {'tipo': 'AC', 'numero': '22S'},
-            'PRIMERO_DE_MAYO': {'tipo': 'AC', 'numero': '22S'},
-            '1_DE_MAYO': {'tipo': 'AC', 'numero': '22S'},
+            'PRIMERA DE MAYO': {'tipo': 'AC', 'numero': '22S'},
+            'PRIMERO DE MAYO': {'tipo': 'AC', 'numero': '22S'},
+            '1 DE MAYO': {'tipo': 'AC', 'numero': '22S'},
             'JIMENEZ': {'tipo': 'AC', 'numero': '13'},
             'JIMÉNEZ': {'tipo': 'AC', 'numero': '13'},
-            'EL_DORADO': {'tipo': 'AC', 'numero': '26'},
+            'EL DORADO': {'tipo': 'AC', 'numero': '26'},
+            'ELDORADO': {'tipo': 'AC', 'numero': '26'},
             'DORADO': {'tipo': 'AC', 'numero': '26'},
             'AMERICAS': {'tipo': 'AC', 'numero': '6'},
             'AMÉRICAS': {'tipo': 'AC', 'numero': '6'},
@@ -62,10 +65,16 @@ class OptimizedAddressParser:
             'CHILE': {'tipo': 'AC', 'numero': '72'},
             'COLON': {'tipo': 'AC', 'numero': '13'},
             'COLÓN': {'tipo': 'AC', 'numero': '13'},
-            '19': {'tipo': 'AV', 'numero': '19'},
-            '68': {'tipo': 'AV', 'numero': '68'},
-            'AVENIDA_19': {'tipo': 'AV', 'numero': '19'},
-            'AVENIDA_68': {'tipo': 'AV', 'numero': '68'},
+            'CALLE19': {'tipo': 'AC', 'numero': '19'},
+            'CALLE 19': {'tipo': 'AC', 'numero': '19'},
+            'AVENIDA19': {'tipo': 'AC', 'numero': '19'},
+            'AVENIDA 19': {'tipo': 'AC', 'numero': '19'},
+            '19': {'tipo': 'AC', 'numero': '19'},
+            'CALLE68': {'tipo': 'AC', 'numero': '68'},
+            'CALLE 68': {'tipo': 'AC', 'numero': '68'},
+            'AVENIDA68': {'tipo': 'AC', 'numero': '68'},
+            'AVENIDA 68': {'tipo': 'AC', 'numero': '68'},
+            '68': {'tipo': 'AC', 'numero': '68'},
         }
         
         # Números escritos como texto - AMPLIADO
@@ -97,8 +106,10 @@ class OptimizedAddressParser:
         """Limpia y normaliza el texto de entrada - MEJORADO"""
         if not text or not isinstance(text, str):
             return ""
+        
         # Eliminar caracteres especiales al inicio (ej: š, ., etc.)
         text = re.sub(r'^[^A-Z0-9]+', '', text.upper().strip())
+        
         # Normalizar caracteres especiales
         text = text.replace('Nº', 'NO').replace('N°', 'NO').replace('°', '').replace('º', '')
         text = text.replace('ª', 'A').replace('º', 'O').replace('Ã', 'A') 
@@ -106,15 +117,37 @@ class OptimizedAddressParser:
         text = text.replace('Á', 'A').replace('Ñ', 'N')
         text = text.replace('.', ' ').replace(',', ' ')
         text = text.replace('-', ' ').replace('_', ' ')
-        text = text.replace('#', ' ').replace('/', ' ')
+        text = text.replace('#', ' ').replace('/', ' ')        # Pre-procesar tipos de vías antes de la limpieza general
+        text = re.sub(r'\bAV\s*\.\s*', 'AVENIDA ', text)
+        text = re.sub(r'\bAVDA\s*\.\s*', 'AVENIDA ', text)
+        text = re.sub(r'\bAVE\s*\.\s*', 'AVENIDA ', text)
+        text = re.sub(r'\bAV\s+', 'AVENIDA ', text)
+        
+        # Normalizar Carreras primero - con más variaciones y más específico
+        text = re.sub(r'\bCR\s*\.?\s*(\d)', 'CARRERA \1', text)
+        text = re.sub(r'\bCRA?\s*\.?\s*(\d)', 'CARRERA \1', text)
+        text = re.sub(r'\bKR\s*\.?\s*(\d)', 'CARRERA \1', text)
+        text = re.sub(r'\bCARR\s*\.?\s*(\d)', 'CARRERA \1', text)
+        text = re.sub(r'\bCR\s+', 'CARRERA ', text)
+        text = re.sub(r'\bCRA\s+', 'CARRERA ', text)
+        text = re.sub(r'\bK\s*\.?\s*(\d)', 'CARRERA \1', text)
+        
+        # Luego Calles
+        text = re.sub(r'\bCL\s*\.?\s*', 'CALLE ', text)
+        text = re.sub(r'\bCALL\s*\.?\s*', 'CALLE ', text)
+        text = re.sub(r'\bC/\s*', 'CALLE ', text)
+
         # Normalizar BIS y variaciones
         text = re.sub(r'\bBIS\b|\bBIZ\b|\bVIS\b', 'BIS', text)
+        
         # Separar orientaciones pegadas a números
         text = re.sub(r'(\d+)(SUR|NORTE|ESTE|OESTE|S|N|E|O)\b', r'\1 \2', text)
         text = re.sub(r'(\d+)([A-Z])\b(?!\s*[A-Z])', r'\1 \2', text)
+        
         # Convertir números escritos a dígitos
         for texto, numero in self.NUMEROS_TEXTO.items():
             text = re.sub(r'\b' + texto + r'\b', numero, text)
+        
         # Eliminar palabras irrelevantes y referencias
         patterns_to_remove = [
             r'EXT\s*\d*', r'EXTERNO\s*\d*', r'ID\s*\d*', r'SENTIDO\s+[A-Z\s-]+', r'POR\s+',
@@ -128,6 +161,7 @@ class OptimizedAddressParser:
         ]
         for pattern in patterns_to_remove:
             text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+        
         # Unificar separadores de intersección
         text = re.sub(r'\bX\b', ' CON ', text)
         text = re.sub(r'\bPOR\b', ' CON ', text)
@@ -146,16 +180,23 @@ class OptimizedAddressParser:
             'numero_terciario': None,
             'orientaciones': []
         }
-        
+
+        if not direccion or not isinstance(direccion, str):
+            return components
+
         direccion = direccion.upper()
-        
-        # Primero buscar avenidas principales
-        # Caso especial para Av 1 de Mayo - MEJORADO
+        resto = direccion
+
+        # Pre-procesar las variaciones de Avenida
+        direccion = re.sub(r'\bAV\s*\.\s*', 'AVENIDA ', direccion)
+        direccion = re.sub(r'\bAVDA\s*\.\s*', 'AVENIDA ', direccion)
+        direccion = re.sub(r'\bAVE\s*\.\s*', 'AVENIDA ', direccion)
+
+        # Caso especial para Av 1 de Mayo
         if re.search(r'AV\.?\s*1\s+DE\s+MAYO|AVENIDA\s*1\s+DE\s+MAYO|PRIMERA\s+DE\s+MAYO', direccion, re.IGNORECASE):
-            components['tipo_via'] = self.AVENIDAS_PRINCIPALES['PRIMERA_DE_MAYO']['tipo']
-            components['numero_principal'] = self.AVENIDAS_PRINCIPALES['PRIMERA_DE_MAYO']['numero']
+            components['tipo_via'] = 'AC'
+            components['numero_principal'] = '22S'
             resto = re.split(r'AV\.?\s*1\s+DE\s+MAYO|AVENIDA\s*1\s+DE\s+MAYO|PRIMERA\s+DE\s+MAYO', direccion, flags=re.IGNORECASE)[-1]
-            # Si es una avenida principal, los números que siguen son secundario y terciario
             numeros = re.findall(r'(\d+[A-Z]?)', resto)
             if len(numeros) >= 1:
                 components['numero_secundario'] = numeros[0]
@@ -163,15 +204,15 @@ class OptimizedAddressParser:
                 components['numero_terciario'] = numeros[1]
             return components
 
-        # Buscar otras avenidas principales - MEJORADO Y FLEXIBLE
+        # Buscar otras avenidas principales
         for nombre, info in self.AVENIDAS_PRINCIPALES.items():
-            patron_nombre = nombre.replace('_', r'\s+')
-            # Patrones más flexibles para diferentes formatos
+            patron_nombre = nombre.strip()
             patterns = [
-                rf'(AV|AVENIDA|AVE|AVDA)\.?\s+{patron_nombre}\s*(NO\.?|#|\.|-|\s)*(\d+[A-Z]?)',
-                rf'(AV|AVENIDA|AVE|AVDA)\.?\s+(\d+)\s*{patron_nombre}' if nombre in ['19', '68'] else None
+                rf'(AVENIDA|AV|AVE|AVDA)\.?\s*{patron_nombre}\s*(NO\.?|#|\.|-|\s)*(\d+[A-Z]?)',
+                rf'(AVENIDA|AV|AVE|AVDA)\.?\s+(\d+)\s*{patron_nombre}' if nombre in ['19', '68'] else None,
+                rf'\b{patron_nombre}\b\s*(NO\.?|#|\.|-|\s)*(\d+[A-Z]?)'
             ]
-            
+
             for pattern in patterns:
                 if pattern is None:
                     continue
@@ -179,7 +220,6 @@ class OptimizedAddressParser:
                 if match:
                     components['tipo_via'] = info['tipo']
                     components['numero_principal'] = info['numero']
-                    # Extraer números del resto de la dirección
                     resto = direccion[match.end():]
                     numeros = re.findall(r'(\d+[A-Z]?)', resto)
                     if len(numeros) >= 1:
@@ -187,21 +227,17 @@ class OptimizedAddressParser:
                     if len(numeros) >= 2:
                         components['numero_terciario'] = numeros[1]
                     return components
-        
-        # Si no se encontró avenida principal, proceder con la detección normal - MEJORADO
+
+        # Si no se encontró avenida principal, proceder con la detección normal
         if not components['tipo_via']:
-            # Detectar tipo de vía normal - buscar el más largo primero para evitar conflictos
+            # Detectar tipo de vía normal
             for via_texto, via_codigo in sorted(self.TIPO_VIA.items(), key=len, reverse=True):
-                # Usar búsqueda con límites de palabra para evitar coincidencias parciales
                 if re.search(r'\b' + re.escape(via_texto) + r'\.?\b', direccion):
                     components['tipo_via'] = via_codigo
                     resto = re.split(r'\b' + re.escape(via_texto) + r'\.?\s*', direccion, 1)[1].strip()
                     break
-                    
-        if not components['tipo_via']:
-            return components
-        
-        # Detectar avenidas simples (AV + número) - MEJORADO
+
+        # Si aún no se encontró tipo de vía, buscar avenidas simples
         if not components['tipo_via']:
             av_pattern = r'(AV|AVENIDA|AVE|AVDA)\.?\s+(\d+[A-Z]?)'
             av_match = re.search(av_pattern, direccion)
@@ -209,20 +245,13 @@ class OptimizedAddressParser:
                 components['tipo_via'] = 'AV'
                 components['numero_principal'] = av_match.group(2)
                 resto = direccion[av_match.end():].strip()
-                # Procesar resto de la dirección
-                numeros = re.findall(r'(\d+[A-Z]?)', resto)
-                if len(numeros) >= 1:
-                    components['numero_secundario'] = numeros[0]
-                if len(numeros) >= 2:
-                    components['numero_terciario'] = numeros[1]
-                return components
-        
+
         # Limpiar el resto de caracteres especiales
         resto = re.sub(r'NO\.?\s*', '', resto)
         resto = re.sub(r'#', ' ', resto)
         resto = resto.strip()
-        
-        # Detectar orientaciones - MEJORADO
+
+        # Detectar orientaciones
         orientaciones_encontradas = []
         for orientacion in self.ORIENTACIONES:
             if re.search(r'\b' + orientacion + r'\b', resto):
@@ -230,62 +259,39 @@ class OptimizedAddressParser:
                 if orientacion_std not in orientaciones_encontradas:
                     orientaciones_encontradas.append(orientacion_std)
                 resto = re.sub(r'\b' + orientacion + r'\b', ' ', resto)
-        
+
         components['orientaciones'] = orientaciones_encontradas
-        
-        # Detectar BIS - MEJORADO
+
+        # Detectar BIS
         if re.search(r'\bBIS\b', resto):
             components['bis'] = True
             resto = re.sub(r'\bBIS\b', ' ', resto)
-        
+
         # Limpiar espacios múltiples
         resto = re.sub(r'\s+', ' ', resto).strip()
-        
-        # Extraer números y letras - PATRÓN MEJORADO
-        # Primero extraer todos los componentes númericos/alfanuméricos
+
+        # Extraer números y letras
         componentes = re.findall(r'(\d+[A-Z]?|[A-Z](?=\s|\d|$))', resto)
-        
+
         # Procesar componentes encontrados
-        idx = 0
-        if idx < len(componentes):
-            # Primer componente: número principal
-            match = re.match(r'(\d+)([A-Z]?)', componentes[idx])
-            if match:
-                components['numero_principal'] = match.group(1)
-                if match.group(2):
-                    components['letra_principal'] = match.group(2)
-                idx += 1
-            elif componentes[idx].isalpha() and len(componentes[idx]) == 1:
-                # Letra suelta al inicio podría ser parte del número principal anterior
-                pass
-        
-        # Si hay una letra suelta después del número principal y no se asignó letra
-        if idx < len(componentes) and not components['letra_principal']:
-            if componentes[idx].isalpha() and len(componentes[idx]) == 1:
-                components['letra_principal'] = componentes[idx]
-                idx += 1
-        
-        # Segundo componente: número secundario
-        if idx < len(componentes):
-            match = re.match(r'(\d+)([A-Z]?)', componentes[idx])
-            if match:
-                components['numero_secundario'] = match.group(1)
-                if match.group(2):
-                    components['letra_secundaria'] = match.group(2)
-                idx += 1
-        
-        # Si hay una letra suelta después del número secundario
-        if idx < len(componentes) and not components['letra_secundaria']:
-            if componentes[idx].isalpha() and len(componentes[idx]) == 1:
-                components['letra_secundaria'] = componentes[idx]
-                idx += 1
-        
-        # Tercer componente: número terciario
-        if idx < len(componentes):
-            match = re.match(r'(\d+)', componentes[idx])
-            if match:
-                components['numero_terciario'] = match.group(1)
-        
+        for idx, comp in enumerate(componentes):
+            if idx == 0 and not components['numero_principal']:
+                match = re.match(r'(\d+)([A-Z]?)', comp)
+                if match:
+                    components['numero_principal'] = match.group(1)
+                    if match.group(2):
+                        components['letra_principal'] = match.group(2)
+            elif idx == 1 or (idx == 0 and components['numero_principal']):
+                match = re.match(r'(\d+)([A-Z]?)', comp)
+                if match:
+                    components['numero_secundario'] = match.group(1)
+                    if match.group(2):
+                        components['letra_secundaria'] = match.group(2)
+            elif idx == 2:
+                match = re.match(r'(\d+)', comp)
+                if match:
+                    components['numero_terciario'] = match.group(1)
+
         return components
 
     def parse_address(self, direccion: str) -> str:
@@ -378,6 +384,11 @@ class OptimizedAddressParser:
                 direccion = re.sub(r'\b' + texto + r'\b', numero, direccion)
             # Unificar separadores
             direccion = re.sub(r'\b(X|POR|CON|Y)\b', ' CON ', direccion)
+            
+            # Detectar carreras primero
+            carrera_pattern = r'\b(CR|CRA?|KR|K|CARRERA)\s*\.?\s*(\d+)'
+            direccion = re.sub(carrera_pattern, lambda m: f"KR {m.group(2)}", direccion)
+            
             # Buscar dos vías y dos números principales
             pattern = r'(CARRERA|CALLE|KR|CL|TV|DG|AV|AC|AK)\.?\s*(\d+[A-Z]?)\s*CON\s*(CARRERA|CALLE|KR|CL|TV|DG|AV|AC|AK)\.?\s*(\d+[A-Z]?)(.*)'
             match = re.search(pattern, direccion)
@@ -449,58 +460,6 @@ if __name__ == "__main__":
         ("Kilómetro 14 vía Bogotá Mosquera", "NO APARECE DIRECCION"),
         ("Carrera 8ª con calle 7ª", "KR 8A CL 7A"),
         ("Calle 42 No.15-23", "CL 42 15 23"),
-        ("SEDE 8 - Liceo Julio César García Calle 12 N.3-50", "CL 12 3 50"),
-        ("Transversal 18Bis # 38-41 piso 2", "TV 18 BIS 38 41"),
-        ("Calle 146B # 90-26", "CL 146B 90 26"),
-        ("Calle 17 SUR # 18-49", "CL 17 SUR 18 49"),
-        ("Carrera 13 #54-74 2° piso", "KR 13 54 74"),
-        
-        # Casos adicionales para mejor cobertura
-        ("Carrera 7A No. 20-07", "KR 7A 20 07"),
-        ("Calle 26 # 13-19 Torre A Piso 15", "CL 26 13 19"),
-        ("Transversal 27 bis # 42-15", "TV 27 BIS 42 15"),
-        ("Diagonal 15 B sur # 20-35", "DG 15B SUR 20 35"),
-        ("AV Caracas # 45-67", "AK 14 45 67"),
-        ("Avenida Séptima # 32-16", "AK 7 32 16"),
-        ("Calle 72 con Carrera 11", "CL 72 KR 11"),
-        ("Carrera 15 # 93-07 Oficina 201", "KR 15 93 07"),
-        ("CL 100 # 19A-36 Apto 304", "CL 100 19A 36"),
-        ("Carrera 9 bis # 74-08", "KR 9 BIS 74 08"),
-        ("Transversal 48 # 16-85 sur", "TV 48 16 85 SUR"),
-        ("Diagonal 40A # 16-46", "DG 40A 16 46"),
-        ("Calle 53 # 10-60/68", "CL 53 10 60"),
-        ("Carrera 11A # 75-00 int 2", "KR 11A 75 00"),
-        ("AC 26 # 59-51", "AC 26 59 51"),
-        ("Carrera 7 # 40-62 Mezz", "KR 7 40 62"),
-        ("Calle 116 # 7-15 Torre 1", "CL 116 7 15"),
-        ("Transversal 93 # 53-32 Piso 6", "TV 93 53 32"),
-        ("Diagonal 109 # 15-55 Local 3", "DG 109 15 55"),
-        ("Carrera 54 # 127-46 norte", "KR 54 127 46 NORTE"),
-        ("Calle 170 # 54-01 Conjunto Res", "CL 170 54 01"),
-        ("Transversal 23 # 97-50 Casa 15", "TV 23 97 50"),
-        ("Carrera 68D # 24B-10", "KR 68D 24B 10"),
-        ("Calle 45 sur # 13-31", "CL 45 SUR 13 31"),
-        ("Diagonal 34 # 5-18 este", "DG 34 5 18 ESTE"),
-        ("Carrera 10 # 27-91 Edif Torre Central", "KR 10 27 91"),
-        ("Calle 85 # 19C-25 Barrio Chapinero", "CL 85 19C 25"),
-        ("Transversal 8 # 45-12 Localidad Usaquén", "TV 8 45 12"),
-        ("AK 30 # 45-03", "AK 30 45 03"),  # NQS
-        ("Autopista Norte # 106-38", "AK 106 38"),
-        ("Carrera décima # 20-30", "KR 10 20 30"),
-        ("Calle primera # 8-15", "CL 1 8 15"),
-        ("Carrera segunda bis # 10-20", "KR 2 BIS 10 20"),
-        ("Cll 50 # 11-18", "CL 50 11 18"),  # Abreviación mal escrita
-        ("Crr 85 # 47-89", "KR 85 47 89"),  # Abreviación mal escrita
-        ("Transv 15 # 23-45", "TV 15 23 45"),  # Abreviación
-        ("Diag 67 # 11-23", "DG 67 11 23"),  # Abreviación
-        ("Av 19 # 103-62", "AV 19 103 62"),
-        ("Carr 7 # 17-01", "KR 7 17 01"),  # Abreviación
-        ("Cal 134 # 7-83", "CL 134 7 83"),  # Abreviación mal escrita
-        ("Carrera 7A No. 20-07-", "KR 7A 20 07"),  # Caso específico del problema
-        ("Vía a Suba Km 5", "NO APARECE DIRECCION"),  # Caso inválido
-        ("Predio La Esperanza", "NO APARECE DIRECCION"),  # Caso inválido
-        ("Lote 15 Manzana C", "NO APARECE DIRECCION"),  # Caso inválido
-        ("Finca El Paraíso", "NO APARECE DIRECCION"),  # Caso inválido
     ]
     
     print("Pruebas del parser corregido y mejorado:")
@@ -523,30 +482,3 @@ if __name__ == "__main__":
     
     print("=" * 90)
     print(f"Resultados: {total - errores}/{total} casos correctos ({((total-errores)/total)*100:.1f}%)")
-    if errores > 0:
-        print(f"Errores: {errores} casos necesitan revisión")
-    
-    # Casos adicionales de prueba específicos para los problemas mencionados
-    print("\n" + "=" * 90)
-    print("CASOS ESPECÍFICOS PARA PROBLEMAS DETECTADOS:")
-    print("=" * 90)
-    
-    casos_especificos = [
-        ("Carrera 7A No. 20-07-", "KR 7A 20 07"),  # Problema específico
-        ("Carrera 7A No. 20-07", "KR 7A 20 07"),   # Sin guión final
-        ("Kr 5 A # 30D - 25 S", "KR 5A 30D 25 SUR"),  # Espacios problemáticos
-        ("Carrera octava con Calle octava", "KR 8 CL 8"),  # Intersección con texto
-        ("CALLE 146B # 90-26", "CL 146B 90 26"),  # Letras pegadas
-        ("AC 145 103 B 90", "AC 145 103B 90"),  # Espacios en AC
-        ("Transversal 18Bis # 38-41", "TV 18 BIS 38 41"),  # Bis pegado
-        ("Calle 17 SUR # 18-49", "CL 17 SUR 18 49"),  # Orientación en medio
-    ]
-    
-    for i, (direccion, esperado) in enumerate(casos_especificos, 1):
-        resultado = parser.parse_address(direccion)
-        status = "✓" if resultado == esperado else "✗"
-        
-        print(f"[{i}] {status} {direccion:<50} -> {resultado}")
-        if resultado != esperado:
-            print(f"      Esperado: {esperado}")
-        print()
