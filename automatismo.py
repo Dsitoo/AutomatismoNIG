@@ -4,8 +4,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import pyautogui
 import os
+import glob
+import shutil
 import time
 import pandas as pd
+from datetime import datetime, timedelta
 
 class AddressAutomation:
     def __init__(self):
@@ -14,6 +17,8 @@ class AddressAutomation:
         self.username = "clauhert"
         self.password = "clauhert"
         self.default_address = "KR 13 81 37"  # Dirección por defecto para pruebas
+        self.download_folder = os.path.expanduser('~/Downloads')
+        self.results_folder = 'C:/Resultados'
         self.setup_driver()
 
     def login(self):
@@ -383,73 +388,128 @@ class AddressAutomation:
             print(f"Error modificando escala: {str(e)}")
 
     def draw_selection_box(self):
-        """Dibujar un cuadrado de selección alrededor del círculo verde"""
+        """Hacer doble clic en el centro donde estaría el círculo verde"""
         try:
-            print("Dibujando cuadrado de selección...")
-            time.sleep(1)
+            print("Moviendo mouse al centro del área...")
+            time.sleep(1.5)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
             
-            # Punto inicial (30% en X, 40% en Y)
-            start_x = window['x'] + int(size['width'] * 0.3)
-            start_y = window['y'] + int(size['height'] * 0.37)
+            # Calcular el centro del área
+            center_x = window['x'] + int(size['width'] * 0.327)
+            center_y = window['y'] + int(size['height'] * 0.427)
             
-            # Tamaño más pequeño para el cuadrado (60 píxeles)
-            box_size = 60
+            # Primero mover el mouse a la posición
+            pyautogui.moveTo(center_x, center_y)
+            time.sleep(1)  # Esperar que el mouse esté estable
             
-            # Punto final
-            end_x = start_x + box_size
-            end_y = start_y + box_size
+            # Realizar los dos clics con intervalo
+            print("Realizando primer clic...")
+            pyautogui.click()
+            time.sleep(0.7)  # Esperar entre clics
+            print("Realizando segundo clic...")
+            pyautogui.click()
             
-            # Hacer clic y arrastrar para crear el cuadrado
-            pyautogui.mouseDown(start_x, start_y)
-            time.sleep(0.5)
-            pyautogui.dragTo(end_x, end_y, duration=1)
-            pyautogui.mouseUp()
-            
-            print("Cuadrado de selección dibujado")
+            print("Clics realizados en el centro del área")
             
         except Exception as e:
-            print(f"Error dibujando selección: {str(e)}")
+            print(f"Error haciendo clics en el centro: {str(e)}")
 
     def get_association_value(self, save_to_excel=False):
-        """Obtener el valor de Asociación de la tabla y guardarlo en un arreglo"""
+        """Hacer clic en el ícono de Word y Export to Excel"""
         try:
-            print("Obteniendo valor de Asociación...")
-            time.sleep(3)
-            self.asociacion = []
+            print("Haciendo clic en icono de Word...")
+            time.sleep(2)
             
-            # Usar selector CSS escapando los dos puntos
-            table_selector = "#default\\:_id36\\:_id38\\:_id10\\:_id32\\:_id5\\:0\\:_id7\\:_id9"
-            print(f"Buscando tabla con selector: {table_selector}")
+            window = self.driver.get_window_position()
+            size = self.driver.get_window_size()
             
-            # Esperar y buscar la tabla directamente
-            table = WebDriverWait(self.driver, 20).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, table_selector))
-            )
-            print("Tabla encontrada!")
+            # El icono está a un 60% del ancho y alineado con el botón Go To
+            word_x = window['x'] + int(size['width'] * 0.49)
+            word_y = window['y'] + 350  # Misma altura que el botón Go To
             
-            # Extraer datos de la tabla
-            rows = table.find_elements(By.TAG_NAME, "tr")
-            for row in rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                for cell in cells:
-                    cell_text = cell.get_attribute('textContent').strip().lower()
-                    if cell_text == 'true':
-                        self.asociacion.append('Si')
-                        print("Encontrado valor 'true', guardado como 'Si'")
-                        return
+            print(f"Haciendo clic en icono Word: x={word_x}, y={word_y}")
+            pyautogui.click(word_x, word_y)
+            print("Clic realizado en icono Word")
             
-            # Si no se encontró "true", agregar "No"
-            self.asociacion.append('No')
-            print("No se encontró el valor 'true', guardado como 'No'")
+            # Clic en Export to Excel (misma X que Word, 15px más abajo)
+            export_x = word_x  # Misma X que el icono Word
+            export_y = word_y + 15  # 15px más abajo que el icono Word
+            
+            print(f"Haciendo clic en Export to Excel: x={export_x}, y={export_y}")
+            pyautogui.click(export_x, export_y)
+            print("Clic realizado en Export to Excel")
             
         except Exception as e:
-            print(f"Error al procesar tabla: {str(e)}")
-            self.asociacion.append('No')
-        
-        print(f"Estado final del arreglo asociacion: {self.asociacion}")
+            print(f"Error haciendo clic en Word/Export: {str(e)}")
+
+    def handle_download_dialog(self):
+        """Manejar el diálogo de descarga seleccionando 'Save File'"""
+        try:
+            print("Esperando diálogo de descarga...")
+            time.sleep(1)
+            
+            # Presionar tecla flecha abajo para moverse a la opción "Save File"
+            pyautogui.press('down')
+            time.sleep(0.5)
+            
+            # Presionar enter para seleccionar "Save File"
+            pyautogui.press('enter')
+            print("Opción 'Save File' seleccionada")
+            
+        except Exception as e:
+            print(f"Error manejando diálogo de descarga: {str(e)}")
+
+    def handle_excel_file(self, timeout=30):
+        """Detectar y mover el archivo Excel más reciente con nombre data.xlsx"""
+        try:
+            print("Esperando archivo Excel 'data.xlsx'...")
+            start_time = datetime.now()
+            
+            # Crear carpeta de resultados si no existe
+            os.makedirs(self.results_folder, exist_ok=True)
+            
+            # Limpiar archivos data.xlsx anteriores en la carpeta de descargas
+            for old_file in glob.glob(os.path.join(self.download_folder, 'data*.xlsx')):
+                try:
+                    os.remove(old_file)
+                    print(f"Archivo anterior eliminado: {old_file}")
+                except:
+                    pass
+            
+            while (datetime.now() - start_time).seconds < timeout:
+                # Buscar específicamente archivos data.xlsx
+                excel_files = glob.glob(os.path.join(self.download_folder, 'data*.xlsx'))
+                
+                if excel_files:
+                    # Tomar el archivo más reciente
+                    latest_file = max(excel_files, key=os.path.getmtime)
+                    
+                    # Esperar a que el archivo termine de descargarse 
+                    file_size = -1
+                    current_size = os.path.getsize(latest_file)
+                    
+                    # Verificar que el archivo no esté siendo modificado
+                    while file_size != current_size:
+                        file_size = current_size
+                        time.sleep(0.5)
+                        current_size = os.path.getsize(latest_file)
+                    
+                    # Mover archivo
+                    new_path = os.path.join(self.results_folder, 'data.xlsx')
+                    shutil.move(latest_file, new_path)
+                    print(f"Archivo movido a: {new_path}")
+                    return new_path
+                
+                time.sleep(1)
+            
+            print("Timeout esperando archivo data.xlsx")
+            return None
+            
+        except Exception as e:
+            print(f"Error manejando archivo Excel: {str(e)}")
+            return None
 
     def setup_driver(self):
         try:
@@ -514,8 +574,18 @@ class AddressAutomation:
             # Dibujar cuadrado de selección
             self.draw_selection_box()
             
-            # Obtener valor de Asociación
-            self.get_association_value(save_to_excel=True)  # Activar guardado en Excel
+            # Obtener valor de Asociación y guardar Excel
+            self.get_association_value(save_to_excel=True)
+            
+            # Manejar diálogo de descarga
+            self.handle_download_dialog()
+            
+            # Manejar archivo Excel descargado
+            excel_path = self.handle_excel_file()
+            if excel_path:
+                print(f"Excel procesado exitosamente: {excel_path}")
+            else:
+                print("No se pudo procesar el archivo Excel")
             
             input("Presiona Enter para cerrar...")
         except Exception as e:
