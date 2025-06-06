@@ -9,6 +9,8 @@ import shutil
 import time
 import pandas as pd
 from datetime import datetime, timedelta
+import xlrd  # Agregar esta importación
+import openpyxl # Agregar esta importación
 
 class AddressAutomation:
     def __init__(self):
@@ -19,6 +21,11 @@ class AddressAutomation:
         self.default_address = "KR 13 81 37"  # Dirección por defecto para pruebas
         self.download_folder = os.path.expanduser('~/Downloads')
         self.results_folder = 'C:/Resultados'
+        self.addresses = ["KR 13 81 37", "CL 57 13 62"]
+        self.current_address = None
+        # Agregar diccionario para almacenar información
+        self.address_data = {}  # Estructura: {dirección: {datos...}}
+        # Eliminar default_address ya que usaremos current_address
         self.setup_driver()
 
     def login(self):
@@ -275,7 +282,7 @@ class AddressAutomation:
             time.sleep(0.5)
             
             # Asegurar que la dirección termine con *
-            address_to_write = self.default_address if self.default_address.endswith('*') else f"{self.default_address}*"
+            address_to_write = self.current_address if self.current_address.endswith('*') else f"{self.current_address}*"
             pyautogui.write(address_to_write)
             print(f"Dirección '{address_to_write}' escrita en Value")
             
@@ -427,89 +434,244 @@ class AddressAutomation:
             
             # El icono está a un 60% del ancho y alineado con el botón Go To
             word_x = window['x'] + int(size['width'] * 0.49)
-            word_y = window['y'] + 350  # Misma altura que el botón Go To
+            word_y = window['y'] + 350
             
             print(f"Haciendo clic en icono Word: x={word_x}, y={word_y}")
             pyautogui.click(word_x, word_y)
             print("Clic realizado en icono Word")
+            time.sleep(1)
             
             # Clic en Export to Excel (misma X que Word, 15px más abajo)
-            export_x = word_x  # Misma X que el icono Word
-            export_y = word_y + 15  # 15px más abajo que el icono Word
+            export_x = word_x
+            export_y = word_y + 15
             
-            print(f"Haciendo clic en Export to Excel: x={export_x}, y={export_y}")
+            print("Haciendo clic en Export to Excel...")
             pyautogui.click(export_x, export_y)
-            print("Clic realizado en Export to Excel")
+            time.sleep(0.5)
+            
+            # Clic en Save File (misma X pero 100px arriba del punto anterior)
+            save_y = export_y - 100
+            print("Haciendo clic en Save File...")
+            pyautogui.click(export_x, save_y)
+            time.sleep(0.5)
+            
+            print("Save File seleccionado")
             
         except Exception as e:
             print(f"Error haciendo clic en Word/Export: {str(e)}")
 
     def handle_download_dialog(self):
-        """Manejar el diálogo de descarga seleccionando 'Save File'"""
+        """Manejar el diálogo de descarga"""
         try:
             print("Esperando diálogo de descarga...")
             time.sleep(1)
-            
-            # Presionar tecla flecha abajo para moverse a la opción "Save File"
-            pyautogui.press('down')
-            time.sleep(0.5)
-            
-            # Presionar enter para seleccionar "Save File"
+            # Solo presionar enter ya que Save File está seleccionado
             pyautogui.press('enter')
-            print("Opción 'Save File' seleccionada")
+            print("Descarga iniciada")
             
         except Exception as e:
             print(f"Error manejando diálogo de descarga: {str(e)}")
 
     def handle_excel_file(self, timeout=30):
-        """Detectar y mover el archivo Excel más reciente con nombre data.xlsx"""
+        """Detectar y mover el archivo Excel data(#).xls más reciente"""
         try:
-            print("Esperando archivo Excel 'data.xlsx'...")
+            print("Esperando archivo Excel 'data.xls'...")
+            time.sleep(3)
             start_time = datetime.now()
             
             # Crear carpeta de resultados si no existe
             os.makedirs(self.results_folder, exist_ok=True)
             
-            # Limpiar archivos data.xlsx anteriores en la carpeta de descargas
-            for old_file in glob.glob(os.path.join(self.download_folder, 'data*.xlsx')):
-                try:
-                    os.remove(old_file)
-                    print(f"Archivo anterior eliminado: {old_file}")
-                except:
-                    pass
+            print(f"Archivos en carpeta de descargas: {os.listdir(self.download_folder)}")
             
             while (datetime.now() - start_time).seconds < timeout:
-                # Buscar específicamente archivos data.xlsx
-                excel_files = glob.glob(os.path.join(self.download_folder, 'data*.xlsx'))
+                # Buscar archivos data.xls
+                excel_files = glob.glob(os.path.join(self.download_folder, 'data*.xls'))
                 
                 if excel_files:
-                    # Tomar el archivo más reciente
-                    latest_file = max(excel_files, key=os.path.getmtime)
+                    print(f"Archivos encontrados: {excel_files}")
                     
-                    # Esperar a que el archivo termine de descargarse 
-                    file_size = -1
-                    current_size = os.path.getsize(latest_file)
+                    # Función para extraer el número del paréntesis
+                    def get_file_number(filename):
+                        import re
+                        match = re.search(r'data\((\d+)\)\.xls$', filename)
+                        return int(match.group(1)) if match else 0
                     
-                    # Verificar que el archivo no esté siendo modificado
-                    while file_size != current_size:
-                        file_size = current_size
-                        time.sleep(0.5)
-                        current_size = os.path.getsize(latest_file)
+                    # Ordenar archivos por número de versión, los sin número serán 0
+                    latest_file = max(excel_files, key=lambda f: (
+                        get_file_number(f),  # Primero por número
+                        os.path.getmtime(f)  # Luego por fecha de modificación
+                    ))
                     
-                    # Mover archivo
-                    new_path = os.path.join(self.results_folder, 'data.xlsx')
-                    shutil.move(latest_file, new_path)
-                    print(f"Archivo movido a: {new_path}")
-                    return new_path
+                    print(f"Archivo más reciente encontrado: {latest_file}")
+                    time.sleep(1)
+                    
+                    try:
+                        new_path = os.path.join(self.results_folder, 'data.xls')
+                        shutil.move(latest_file, new_path)
+                        print(f"Archivo movido exitosamente a: {new_path}")
+                        return new_path
+                    except PermissionError:
+                        print("Archivo aún en uso, esperando...")
+                        time.sleep(1)
+                        continue
+                    except Exception as move_error:
+                        print(f"Error moviendo archivo: {str(move_error)}")
+                        return None
                 
-                time.sleep(1)
+                time.sleep(0.5)
             
-            print("Timeout esperando archivo data.xlsx")
+            print(f"Timeout después de {timeout} segundos")
             return None
             
         except Exception as e:
             print(f"Error manejando archivo Excel: {str(e)}")
             return None
+
+    def get_nap_status(self):
+        """Consultar estado de la NAP al usuario"""
+        print("\nEstado de la NAP:")
+        print("1. Activa")
+        print("2. En Diseño")
+        print("3. Activa y En Diseño")
+        print("4. Otro")
+        
+        while True:
+            try:
+                opcion = input("\nSeleccione una opción (1-4): ")
+                if opcion not in ['1', '2', '3', '4']:
+                    print("Opción inválida. Por favor seleccione 1, 2, 3 o 4.")
+                    continue
+                
+                if opcion == '1':
+                    return 'Activa'
+                elif opcion == '2':
+                    return 'En Diseño'
+                elif opcion == '3':
+                    return 'Activa y En Diseño'
+                else:
+                    estado_custom = input("Ingrese el estado personalizado: ")
+                    return estado_custom
+                    
+            except Exception as e:
+                print(f"Error: {str(e)}")
+                print("Por favor intente nuevamente.")
+
+    def process_excel_files(self, data_path):
+        """Procesar archivos Excel y almacenar información"""
+        try:
+            print("Procesando archivos Excel...")
+            
+            # Obtener datos del Excel
+            try:
+                workbook = xlrd.open_workbook(data_path)
+                sheet = workbook.sheet_by_name('Address')
+                
+                # Buscar el índice de la columna 'Asociacion'
+                header_row = sheet.row_values(0)
+                asociacion_col = header_row.index('Asociacion')
+                asociacion_valor = sheet.cell_value(1, asociacion_col) if sheet.nrows > 1 else None
+                
+                # Convertir valor
+                valor_final = 'Si' if str(asociacion_valor).lower() == 'true' else 'No'
+                
+                # Verificar hoja Molecula
+                tiene_hoja_molecula = 'Molecula' in workbook.sheet_names()
+                
+                if tiene_hoja_molecula:
+                    sheet_molecula = workbook.sheet_by_name('Molecula')
+                    header_molecula = sheet_molecula.row_values(0)
+                    type_col = header_molecula.index('Type')
+                    codigo_col = header_molecula.index('Codigo')
+                    propietario_col = header_molecula.index('Propietario')
+                    
+                    # Buscar datos de Macro Cell
+                    for row in range(1, sheet_molecula.nrows):
+                        if sheet_molecula.cell_value(row, type_col) == 'Macro Cell':
+                            codigo_macro = sheet_molecula.cell_value(row, codigo_col)
+                            propietario_valor = sheet_molecula.cell_value(row, propietario_col)
+                            break
+                    else:
+                        codigo_macro = propietario_valor = 'N/A'
+                else:
+                    codigo_macro = propietario_valor = 'N/A'
+                    valor_final = 'No'
+                
+                # Obtener estado NAP
+                estado_nap = self.get_nap_status()
+                
+                # Almacenar datos para la dirección actual
+                self.address_data[self.current_address] = {
+                    'dentro_molecula': 'Si' if tiene_hoja_molecula else 'No',
+                    'asociado': valor_final,
+                    'propietario': propietario_valor,
+                    'codigo_macro': codigo_macro,
+                    'estado_nap': estado_nap
+                }
+                
+                print(f"Datos almacenados para dirección {self.current_address}")
+                
+            except Exception as e:
+                print(f"Error procesando Excel: {str(e)}")
+                
+        except Exception as e:
+            print(f"Error general: {str(e)}")
+
+    def update_backlog(self):
+        """Actualizar Backlog con toda la información recolectada"""
+        try:
+            print("\nActualizando Backlog con toda la información...")
+            backlog_path = 'Backlog250525-filtradocobertura.xlsx'
+            
+            workbook = openpyxl.load_workbook(backlog_path)
+            sheet = workbook['Detalle']
+            
+            # Definir columnas
+            param_col = 26      # Columna Z - Parametrización
+            dentro_mol_col = 27 # Columna AA - Dentro molecula Gpon
+            asoc_col = 28       # Columna AB - Asociado molecula
+            prop_mol_col = 29   # Columna AC - Propietario Molecula
+            nombre_mol_col = 30 # Columna AD - Nombre de la molecula
+            estado_mol_col = 31 # Columna AE - Estado Molecula
+            
+            # Actualizar datos para cada dirección
+            for row in range(2, sheet.max_row + 1):
+                direccion = sheet.cell(row=row, column=param_col).value
+                if direccion in self.address_data:
+                    data = self.address_data[direccion]
+                    sheet.cell(row=row, column=dentro_mol_col, value=data['dentro_molecula'])
+                    sheet.cell(row=row, column=asoc_col, value=data['asociado'])
+                    sheet.cell(row=row, column=prop_mol_col, value=data['propietario'])
+                    sheet.cell(row=row, column=nombre_mol_col, value=data['codigo_macro'])
+                    sheet.cell(row=row, column=estado_mol_col, value=data['estado_nap'])
+                    print(f"Actualizada dirección: {direccion}")
+            
+            workbook.save(backlog_path)
+            print("Backlog actualizado exitosamente")
+            
+        except Exception as e:
+            print(f"Error actualizando Backlog: {str(e)}")
+
+    def click_clear(self):
+        """Hacer clic en el botón Clear"""
+        try:
+            print("Haciendo clic en Clear...")
+            time.sleep(1)
+            
+            window = self.driver.get_window_position()
+            size = self.driver.get_window_size()
+            
+            # Coordenadas para el botón Clear
+            clear_x = window['x'] + int(size['width'] * 0.45)
+            clear_y = window['y'] + 300  # Más abajo que Add to List
+            
+            print(f"Haciendo clic en Clear: x={clear_x}, y={clear_y}")
+            pyautogui.click(clear_x, clear_y)
+            print("Clic realizado en Clear")
+            time.sleep(1)  # Esperar que se complete el clear
+            
+        except Exception as e:
+            print(f"Error haciendo clic en Clear: {str(e)}")
 
     def setup_driver(self):
         try:
@@ -543,51 +705,47 @@ class AddressAutomation:
             # Hacer clic en Next
             self.click_next_button()
             
-            # Hacer clic en Actual Count
-            self.click_actual_count()
+            # Procesar cada dirección
+            for idx, address in enumerate(self.addresses):
+                self.current_address = address
+                print(f"\nProcesando dirección {idx + 1}/{len(self.addresses)}: {address}")
+                
+                # Secuencia de clics en orden correcto
+                self.click_actual_count()
+                time.sleep(1)
+                self.click_name()
+                time.sleep(1)
+                self.click_equals()
+                time.sleep(1)
+                self.click_is_like()
+                time.sleep(1)
+                self.click_value()
+                time.sleep(1)
+                self.click_add_to_list()
+                self.click_search()
+                self.minimize_window()
+                self.click_go_to()
+                self.set_scale()
+                self.draw_selection_box()
+                
+                # Descargar y procesar Excel
+                self.get_association_value(save_to_excel=True)
+                self.handle_download_dialog()
+                excel_path = self.handle_excel_file()
+                if excel_path:
+                    self.process_excel_files(excel_path)
+                
+                # Restaurar para siguiente dirección si no es la última
+                if idx < len(self.addresses) - 1:
+                    self.click_default_button()
+                    time.sleep(1)
+                    self.click_clear()
             
-            # Hacer clic en Name
-            self.click_name()
-            
-            # Hacer clic en Equals
-            self.click_equals()
-            
-            # Hacer clic en Is Like
-            self.click_is_like()
-            
-            # Hacer clic en Value
-            self.click_value()
-            
-            # Hacer clic en Add to List y Search
-            self.click_add_to_list()
-            self.click_search()
-            
-            # Minimizar ventana
-            self.minimize_window()
-            
-            # Hacer clic en Go To
-            self.click_go_to()
-            
-            # Modificar escala
-            self.set_scale()
-            
-            # Dibujar cuadrado de selección
-            self.draw_selection_box()
-            
-            # Obtener valor de Asociación y guardar Excel
-            self.get_association_value(save_to_excel=True)
-            
-            # Manejar diálogo de descarga
-            self.handle_download_dialog()
-            
-            # Manejar archivo Excel descargado
-            excel_path = self.handle_excel_file()
-            if excel_path:
-                print(f"Excel procesado exitosamente: {excel_path}")
-            else:
-                print("No se pudo procesar el archivo Excel")
+            # Actualizar Backlog al final con toda la información
+            self.update_backlog()
             
             input("Presiona Enter para cerrar...")
+            
         except Exception as e:
             print(f"Error: {str(e)}")
             raise
