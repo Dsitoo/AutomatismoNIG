@@ -110,6 +110,8 @@ class ExcelAddressProcessor:
             # También leer con pandas para facilitar la detección de columnas
             df = pd.read_excel(file_path)
             
+            # Normalizar nombres de columnas para evitar errores por tildes/mayúsculas
+            df.columns = [self.normalize_colname(str(col)) for col in df.columns]
             # Detectar columna de direcciones
             address_col = self.detect_address_column(df)
             if not address_col:
@@ -156,48 +158,25 @@ class ExcelAddressProcessor:
             print(f"📍 Columna de direcciones: {address_col} (columna {chr(65+address_col_idx)})")
             print(f"🎯 Columna de parametrización: {param_col_name} (columna {chr(65+param_col_idx)})")
             
-            # Procesar direcciones y crear diccionario de parametrización
-            valid_addresses = df[address_col].fillna("").astype(str)
+            # Procesar solo filas visibles
+            print("🔄 Procesando direcciones solo en filas visibles...")
             self.parser.direcciones_procesadas = []
-            
-            print("🔄 Procesando direcciones...")
-            for i, addr in enumerate(valid_addresses):
-                if show_progress and i % 100 == 0:
-                    progress = (i / len(valid_addresses)) * 100
-                    print(f"   Progreso: {progress:.1f}% ({i}/{len(valid_addresses)})")
-                self.parser.parse_address(addr)
-            
-            procesadas = self.parser.get_direcciones_procesadas()
-            dict_param = {orig: param for orig, param in procesadas}
-            
-            # SOLO modificar el contenido de las celdas de parametrización
-            print("✏️  Actualizando celdas de parametrización...")
             modificadas = 0
             vaciadas = 0
-            
-            # Iterar sobre las filas de datos (saltando el header)
-            for row_idx in range(2, len(df) + 2):  # openpyxl usa índices base 1, y fila 1 es header
-                # Obtener la dirección original
+            for row_idx in range(2, worksheet.max_row + 1):
+                if worksheet.row_dimensions[row_idx].hidden:
+                    continue
                 direccion_cell = worksheet.cell(row=row_idx, column=address_col_idx + 1)
                 direccion_original = str(direccion_cell.value or "").strip()
-                
                 if not direccion_original:
                     continue
-                
-                # Obtener la parametrización
-                parametrizada = dict_param.get(direccion_original, "NO APARECE DIRECCION")
-                
-                # Celda de parametrización
+                parametrizada = self.parser.parse_address(direccion_original)
                 param_cell = worksheet.cell(row=row_idx, column=param_col_idx + 1)
-                
-                # Aplicar las reglas:
-                if parametrizada == "NO APARECE DIRECCION" or parametrizada == direccion_original:
-                    # Dejar la celda vacía (no necesita cambios o no se puede parametrizar)
+                if parametrizada == "NO APARECE DIRECCION":
                     if param_cell.value is not None:
                         param_cell.value = None
                         vaciadas += 1
                 else:
-                    # Reemplazar con la versión corregida
                     param_cell.value = parametrizada
                     modificadas += 1
             
@@ -211,7 +190,6 @@ class ExcelAddressProcessor:
             print("✅ PROCESAMIENTO COMPLETADO")
             print(f"{'='*60}")
             print(f"📁 Archivo: {file_path}")
-            print(f"📊 Total direcciones procesadas: {len(valid_addresses)}")
             print(f"✏️  Celdas modificadas: {modificadas}")
             print(f"🧹 Celdas vaciadas: {vaciadas}")
             print(f"🎨 Formato original preservado: ✅")

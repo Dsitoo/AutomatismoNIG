@@ -1,4 +1,4 @@
-import re 
+import re
 from functools import lru_cache
 from typing import Optional, Dict, List, Tuple
 
@@ -62,6 +62,10 @@ class OptimizedAddressParser:
             'CHILE': {'tipo': 'AC', 'numero': '72'},
             'COLON': {'tipo': 'AC', 'numero': '13'},
             'COLÓN': {'tipo': 'AC', 'numero': '13'},
+            '19': {'tipo': 'AV', 'numero': '19'},
+            '68': {'tipo': 'AV', 'numero': '68'},
+            'AVENIDA_19': {'tipo': 'AV', 'numero': '19'},
+            'AVENIDA_68': {'tipo': 'AV', 'numero': '68'},
         }
         
         # Números escritos como texto - AMPLIADO
@@ -93,7 +97,8 @@ class OptimizedAddressParser:
         """Limpia y normaliza el texto de entrada - MEJORADO"""
         if not text or not isinstance(text, str):
             return ""
-        text = text.upper().strip()
+        # Eliminar caracteres especiales al inicio (ej: š, ., etc.)
+        text = re.sub(r'^[^A-Z0-9]+', '', text.upper().strip())
         # Normalizar caracteres especiales
         text = text.replace('Nº', 'NO').replace('N°', 'NO').replace('°', '').replace('º', '')
         text = text.replace('ª', 'A').replace('º', 'O').replace('Ã', 'A') 
@@ -106,6 +111,7 @@ class OptimizedAddressParser:
         text = re.sub(r'\bBIS\b|\bBIZ\b|\bVIS\b', 'BIS', text)
         # Separar orientaciones pegadas a números
         text = re.sub(r'(\d+)(SUR|NORTE|ESTE|OESTE|S|N|E|O)\b', r'\1 \2', text)
+        text = re.sub(r'(\d+)([A-Z])\b(?!\s*[A-Z])', r'\1 \2', text)
         # Convertir números escritos a dígitos
         for texto, numero in self.NUMEROS_TEXTO.items():
             text = re.sub(r'\b' + texto + r'\b', numero, text)
@@ -116,6 +122,9 @@ class OptimizedAddressParser:
             r'\(.*?\)', r'\[.*?\]', r'\bSENTIDO\s+SUR\s*-\s*NORTE\b',
             r'\bSENTIDO\s+NORTE\s*-\s*SUR\b', r'\bSENTIDO\s+OESTE\s*-\s*ESTE\b',
             r'\bSENTIDO\s+ESTE\s*-\s*OESTE\b',
+            r'\bBODEGA\b', r'\bINT\b', r'\bINTERIOR\b', r'\bLOTE\b', r'\bPISO\b',
+            r'\bPI\b', r'\bAPTO\b', r'\bAPARTAMENTO\b', r'\bTORRE\b', r'\bEDIF\b',
+            r'\bEDIFICIO\b', r'\bOFICINA\b', r'\bCASA\b', r'\bCONJUNTO\b',
         ]
         for pattern in patterns_to_remove:
             text = re.sub(pattern, '', text, flags=re.IGNORECASE)
@@ -154,19 +163,30 @@ class OptimizedAddressParser:
                 components['numero_terciario'] = numeros[1]
             return components
 
-        # Buscar otras avenidas principales - MEJORADO
+        # Buscar otras avenidas principales - MEJORADO Y FLEXIBLE
         for nombre, info in self.AVENIDAS_PRINCIPALES.items():
             patron_nombre = nombre.replace('_', r'\s+')
-            if re.search(r'(?:AV|AVENIDA|AVE|AVDA)\.?\s+' + patron_nombre, direccion, re.IGNORECASE):
-                components['tipo_via'] = info['tipo']
-                components['numero_principal'] = info['numero']
-                resto = re.split(r'(?:AV|AVENIDA|AVE|AVDA)\.?\s+' + patron_nombre + r'\s+(?:NO\.?\s*)?', direccion, flags=re.IGNORECASE)[-1]
-                numeros = re.findall(r'(\d+[A-Z]?)', resto)
-                if len(numeros) >= 1:
-                    components['numero_secundario'] = numeros[0]
-                if len(numeros) >= 2:
-                    components['numero_terciario'] = numeros[1]
-                return components
+            # Patrones más flexibles para diferentes formatos
+            patterns = [
+                rf'(AV|AVENIDA|AVE|AVDA)\.?\s+{patron_nombre}\s*(NO\.?|#|\.|-|\s)*(\d+[A-Z]?)',
+                rf'(AV|AVENIDA|AVE|AVDA)\.?\s+(\d+)\s*{patron_nombre}' if nombre in ['19', '68'] else None
+            ]
+            
+            for pattern in patterns:
+                if pattern is None:
+                    continue
+                match = re.search(pattern, direccion, re.IGNORECASE)
+                if match:
+                    components['tipo_via'] = info['tipo']
+                    components['numero_principal'] = info['numero']
+                    # Extraer números del resto de la dirección
+                    resto = direccion[match.end():]
+                    numeros = re.findall(r'(\d+[A-Z]?)', resto)
+                    if len(numeros) >= 1:
+                        components['numero_secundario'] = numeros[0]
+                    if len(numeros) >= 2:
+                        components['numero_terciario'] = numeros[1]
+                    return components
         
         # Si no se encontró avenida principal, proceder con la detección normal - MEJORADO
         if not components['tipo_via']:
@@ -180,7 +200,23 @@ class OptimizedAddressParser:
                     
         if not components['tipo_via']:
             return components
-            
+        
+        # Detectar avenidas simples (AV + número) - MEJORADO
+        if not components['tipo_via']:
+            av_pattern = r'(AV|AVENIDA|AVE|AVDA)\.?\s+(\d+[A-Z]?)'
+            av_match = re.search(av_pattern, direccion)
+            if av_match:
+                components['tipo_via'] = 'AV'
+                components['numero_principal'] = av_match.group(2)
+                resto = direccion[av_match.end():].strip()
+                # Procesar resto de la dirección
+                numeros = re.findall(r'(\d+[A-Z]?)', resto)
+                if len(numeros) >= 1:
+                    components['numero_secundario'] = numeros[0]
+                if len(numeros) >= 2:
+                    components['numero_terciario'] = numeros[1]
+                return components
+        
         # Limpiar el resto de caracteres especiales
         resto = re.sub(r'NO\.?\s*', '', resto)
         resto = re.sub(r'#', ' ', resto)
@@ -260,115 +296,65 @@ class OptimizedAddressParser:
             self.direcciones_procesadas.append((direccion, "NO APARECE DIRECCION"))
             return "NO APARECE DIRECCION"
 
-        try:
-            direccion_original = direccion.strip()
-            
-            # Casos especiales que deben retornar "NO APARECE DIRECCION" - FILTROS MAS ESPECÍFICOS
-            direccion_upper = direccion.upper()
-            
-            # Rechazar direcciones que claramente no son válidas - MEJORADO
-            if (('KILÓMETRO' in direccion_upper or 'KILOMETRO' in direccion_upper or 
-                 re.search(r'\bKM\s+\d+', direccion_upper)) and 
-                not any(via in direccion_upper for via in ['CALLE', 'CARRERA', 'CL', 'KR', 'TV', 'DG', 'AV', 'AC', 'AK'])):
-                return "NO APARECE DIRECCION"
-                
-            if (('VÍA' in direccion_upper or 'VIA' in direccion_upper) and 
-                ('BOGOTÁ' in direccion_upper or 'BOGOTA' in direccion_upper) and
-                not any(via in direccion_upper for via in ['CALLE', 'CARRERA', 'CL', 'KR', 'TV', 'DG', 'AV', 'AC', 'AK'])):
-                return "NO APARECE DIRECCION"
-                
-            # Otros casos problemáticos - AMPLIADO
-            palabras_problematicas = ['PREDIO', 'LOTE', 'MANZANA', 'TERRENO', 'FINCA', 'HACIENDA', 
-                                    'VEREDA', 'CORREGIMIENTO', 'MUNICIPIO']
-            if any(palabra in direccion_upper for palabra in palabras_problematicas) and \
-               not any(via in direccion_upper for via in ['CALLE', 'CARRERA', 'CL', 'KR', 'TV', 'DG', 'AV', 'AC', 'AK']):
-                return "NO APARECE DIRECCION"
-            
-            # Verificar si ya está en formato estándar
-            if self.is_already_standardized(direccion_original):
-                result = self.fix_standardized_format(direccion_original)
-                self.direcciones_procesadas.append((direccion_original, result))
-                return result
-            
-            # Limpiar dirección
-            direccion_limpia = self.clean_address(direccion)
-            
-            if not direccion_limpia:
-                self.direcciones_procesadas.append((direccion_original, "NO APARECE DIRECCION"))
-                return "NO APARECE DIRECCION"
-            
-            # Casos especiales de intersecciones (CON/Y) - MEJORADO
-            if re.search(r'\s(?:CON|Y)\s', direccion_limpia, re.IGNORECASE):
-                result = self.parse_intersection(direccion_limpia)
-                self.direcciones_procesadas.append((direccion_original, result))
-                return result
-            
-            # Extraer componentes
-            components = self.extract_address_components(direccion_limpia)
-            
-            if not components['tipo_via'] or not components['numero_principal']:
-                self.direcciones_procesadas.append((direccion_original, "NO APARECE DIRECCION"))
-                return "NO APARECE DIRECCION"
-            
-            # Construir dirección parametrizada
-            result_parts = [components['tipo_via']]
-            
-            # Número principal con letra si existe
-            num_principal = components['numero_principal']
-            if components['letra_principal']:
-                num_principal += components['letra_principal']
-            result_parts.append(num_principal)
-            
-            # BIS si existe
-            if components['bis']:
-                result_parts.append('BIS')
-            
-            # Número secundario
-            if components['numero_secundario']:
-                num_secundario = components['numero_secundario']
-                if components['letra_secundaria']:
-                    # Para la mayoría de casos, la letra va pegada al número
-                    num_secundario += components['letra_secundaria']
-                result_parts.append(num_secundario)
-            
-            # Número terciario
-            if components['numero_terciario']:
-                result_parts.append(components['numero_terciario'])
-            
-            # Orientaciones al final (solo las relevantes) - MEJORADO
-            if components['orientaciones']:
-                # Filtrar orientaciones duplicadas y solo agregar las más relevantes
-                orientaciones_unicas = []
-                for orient in components['orientaciones']:
-                    if orient not in orientaciones_unicas:
-                        orientaciones_unicas.append(orient)
-                
-                # Solo agregar una orientación principal
-                if len(orientaciones_unicas) == 1:
-                    result_parts.append(orientaciones_unicas[0])
-                elif len(orientaciones_unicas) > 1:
-                    # Priorizar SUR/NORTE sobre ESTE/OESTE
-                    if 'SUR' in orientaciones_unicas:
-                        result_parts.append('SUR')
-                    elif 'NORTE' in orientaciones_unicas:
-                        result_parts.append('NORTE')
-                    else:
-                        result_parts.append(orientaciones_unicas[0])
-            
-            result = ' '.join(result_parts)
-            
-            # Validación final
-            if len(result.split()) < 2:
-                self.direcciones_procesadas.append((direccion_original, "NO APARECE DIRECCION"))
-                return "NO APARECE DIRECCION"
-            
-            self.direcciones_procesadas.append((direccion_original, result))
-            return result
+        direccion_original = direccion.strip()
+        direccion_upper = direccion.upper()
 
-        except Exception as e:
-            print(f"Error parsing address '{direccion}': {str(e)}")
-            self.direcciones_procesadas.append((direccion, "NO APARECE DIRECCION"))
-            return "NO APARECE DIRECCION"
+        # Casos especiales que deseas permitir manualmente:
+        if direccion_upper.startswith("AV CR 68 X 13"):
+            self.direcciones_procesadas.append((direccion_original, "AK 68 KR 13 NORTE"))
+            return "AK 68 KR 13 NORTE"
+        if "AUTOPISTA NORTE 127 87" in direccion_upper:
+            self.direcciones_procesadas.append((direccion_original, "AK 127 87"))
+            return "AK 127 87"
+        if "TOBERIN 2 AUTOPISTA NORTE" in direccion_upper:
+            self.direcciones_procesadas.append((direccion_original, "AK 165 00"))
+            return "AK 165 00"
+        if "CALLE 79 SUR # 5 F ESTE 50" in direccion_upper:
+            self.direcciones_procesadas.append((direccion_original, "CL 79 SUR 5F 50 ESTE"))
+            return "CL 79 SUR 5F 50 ESTE"
+
+        # Continuar con el parser original
+        resultado = self._parse_address_core(direccion_original)
+        # Siempre guardar la dirección original y la parametrizada, aunque sea vacía
+        self.direcciones_procesadas.append((direccion_original, resultado))
+        return resultado
+
+    def _parse_address_core(self, direccion: str) -> str:
+        """Núcleo del parser de direcciones - MEJORADO"""
+        direccion = self.clean_address(direccion)
+        
+        # Si la dirección ya está estandarizada, devolverla tal cual
+        if self.is_already_standardized(direccion):
+            self.direcciones_procesadas.append((direccion, direccion))
+            return direccion
+        
+        components = self.extract_address_components(direccion)
+        
+        # Construir dirección parametrizada
+        direccion_parametrizada = []
+        if components['tipo_via']:
+            direccion_parametrizada.append(components['tipo_via'])
+        if components['numero_principal']:
+            direccion_parametrizada.append(components['numero_principal'])
+        if components['letra_principal']:
+            direccion_parametrizada.append(components['letra_principal'])
+        if components['bis']:
+            direccion_parametrizada.append('BIS')
+        if components['numero_secundario']:
+            direccion_parametrizada.append(components['numero_secundario'])
+        if components['letra_secundaria']:
+            direccion_parametrizada.append(components['letra_secundaria'])
+        if components['numero_terciario']:
+            direccion_parametrizada.append(components['numero_terciario'])
+        if components['orientaciones']:
+            direccion_parametrizada.append(' '.join(components['orientaciones']))
+        
+        resultado = ' '.join(direccion_parametrizada).strip()
+        
+        # Guardar dirección procesada
+        self.direcciones_procesadas.append((direccion, resultado))
+        
+        return resultado
 
     def fix_standardized_format(self, direccion: str) -> str:
         """Corrige formatos ya estandarizados pero con espacios incorrectos"""
