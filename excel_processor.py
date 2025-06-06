@@ -6,15 +6,17 @@ from datetime import datetime
 from typing import Optional, Dict, List, Tuple
 import logging
 import re
+import unicodedata
+from openpyxl import load_workbook
 from address_parser import OptimizedAddressParser
 
 class ExcelAddressProcessor:
     """
-    Procesador optimizado para archivos Excel con direcciones - VERSIÓN CORREGIDA
+    Procesador optimizado para archivos Excel con direcciones - PRESERVA FORMATO
     """
     
     def __init__(self, log_level: str = 'INFO'):
-        self.parser = OptimizedAddressParser()  # Usar el parser corregido
+        self.parser = OptimizedAddressParser()
         self.setup_logging(log_level)
         self.processed_count = 0
         self.error_count = 0
@@ -27,13 +29,12 @@ class ExcelAddressProcessor:
         }
     
     def setup_logging(self, level: str):
-        """Configurar logging"""
+        """Configurar logging solo en consola, sin archivo .log"""
         log_level = getattr(logging, level.upper(), logging.INFO)
         logging.basicConfig(
             level=log_level,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
-                logging.FileHandler(f'address_processing_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'),
                 logging.StreamHandler()
             ]
         )
@@ -80,39 +81,18 @@ class ExcelAddressProcessor:
                         return col
         
         return None
-    
-    def process_addresses_batch(self, addresses: List[str], batch_size: int = 1000) -> List[str]:
-        """Procesar direcciones en lotes - VERSIÓN CORREGIDA"""
-        results = []
-        total = len(addresses)
-        
-        for i in range(0, total, batch_size):
-            batch = addresses[i:i + batch_size]
-            batch_results = []
-            
-            for addr in batch:
-                try:
-                    if pd.isna(addr) or not str(addr).strip():
-                        batch_results.append("NO APARECE DIRECCION")
-                        continue
-                    
-                    # Usar el parser corregido directamente
-                    result = self.parser.parse_address(str(addr))
-                    batch_results.append(result)
-                    
-                except Exception as e:
-                    self.logger.error(f"Error procesando dirección '{addr}': {str(e)}")
-                    batch_results.append("NO APARECE DIRECCION")
-            
-            results.extend(batch_results)
-            progress = min(100, (i + batch_size) * 100 / total)
-            self.logger.info(f"Progreso: {progress:.1f}% ({i + batch_size}/{total})")
-        
-        return results
 
-    def process_excel_file(self, file_path: str = "Backlog250525-filtradocobertura.xlsx", 
-                          show_progress: bool = True) -> bool:
-        """Procesar archivo Excel - VERSIÓN CORREGIDA"""
+    def normalize_colname(self, colname: str) -> str:
+        """Normaliza el nombre de columna quitando tildes y pasando a minúsculas"""
+        return ''.join(c for c in unicodedata.normalize('NFD', colname)
+                       if unicodedata.category(c) != 'Mn').lower()
+
+    def process_excel_file_preserve_format(self, file_path: str = "Backlog250525-filtradocobertura.xlsx", 
+                                         show_progress: bool = True) -> bool:
+        """
+        Procesar archivo Excel PRESERVANDO TODO EL FORMATO ORIGINAL
+        SOLO modifica el contenido de las celdas de parametrización
+        """
         try:
             # Validar archivo
             is_valid, message = self.validate_file(file_path)
@@ -120,86 +100,122 @@ class ExcelAddressProcessor:
                 self.logger.error(message)
                 return False
             
-            # Leer archivo Excel
+            print(f"🔄 Procesando archivo: {file_path}")
+            print("⚠️  MODO PRESERVACIÓN DE FORMATO - Solo se editará el contenido de celdas")
+            
+            # Usar openpyxl para preservar formato
+            workbook = load_workbook(file_path)
+            worksheet = workbook.active
+            
+            # También leer con pandas para facilitar la detección de columnas
             df = pd.read_excel(file_path)
             
-            # Aplicar filtros
-            df_filtered = df[
-                (df['Nombre producto'].isin(['Internet Dedicado', 'Conectividad Avanzada IP'])) &
-                (df['Tipo operación'].str.strip() == 'Venta') &
-                (df['Estado general'].str.upper().isin(['EN CURSO', 'NUEVOS INGRESOS'])) &
-                (df['Ciudad de instalación'].str.contains('BOGOTÁ, D.C.', case=False, na=False)) &
-                (df['Cliente'].str.upper() != 'SECRETARIA DE EDUCACION DEL DISTRITO')
-            ]
-            
             # Detectar columna de direcciones
-            address_col = self.detect_address_column(df_filtered)
+            address_col = self.detect_address_column(df)
             if not address_col:
                 self.logger.error("No se pudo detectar la columna de direcciones")
                 return False
             
-            # Obtener direcciones válidas
-            valid_addresses = df_filtered[address_col].fillna("").astype(str)
+            # Encontrar índice de la columna de direcciones
+            address_col_idx = None
+            for idx, col in enumerate(df.columns):
+                if col == address_col:
+                    address_col_idx = idx
+                    break
             
-            # Información inicial
-            print(f"\nArchivo: {file_path}")
-            print(f"Total registros originales: {len(df)}")
-            print(f"Registros después de filtros: {len(df_filtered)}")
-            print(f"Direcciones a parametrizar: {len(valid_addresses)}")
-            print(f"Columna: {address_col}")
-            print("=" * 60)
+            if address_col_idx is None:
+                self.logger.error("No se pudo encontrar el índice de la columna de direcciones")
+                return False
             
-            # Parametrizar direcciones
-            print("\nPARAMETRIZANDO DIRECCIONES:")
-            print("-" * 60)
+            # Detectar columna de parametrización
+            param_col_name = None
+            param_col_idx = None
+            target_col = self.normalize_colname('Prametrización')
+            for idx, col in enumerate(df.columns):
+                norm_col = self.normalize_colname(str(col).replace('"','').replace("'",''))
+                if norm_col == target_col:
+                    param_col_name = col
+                    param_col_idx = idx
+                    break
             
-            # Procesar direcciones
-            batch_results = self.process_addresses_batch(valid_addresses.tolist())
-            
-            # Agregar resultados al DataFrame
-            df_filtered = df_filtered.copy()
-            df_filtered['Direccion_Parametrizada'] = batch_results
-            
-            # Mostrar resultados
-            unchanged_count = 0
-            changed_count = 0
-            error_count = 0
-            
-            for i, (orig, param) in enumerate(zip(valid_addresses, batch_results), 1):
-                print(f"[{i}/{len(valid_addresses)}]")
-                print(f"Original:      {orig}")
-                print(f"Parametrizada: {param}")
-                
-                if param == "NO APARECE DIRECCION":
-                    print("✗ No se pudo parametrizar")
-                    error_count += 1
-                elif str(orig).strip() == str(param).strip():
-                    print("! No requería cambios")
-                    unchanged_count += 1
+            if not param_col_name:
+                print("No se encontró columna de parametrización automáticamente.")
+                print("Columnas disponibles:")
+                for i, col in enumerate(df.columns):
+                    print(f"  {chr(65+i)}: {col}")
+                print("Por favor, ingrese la letra de la columna de parametrización (ejemplo: Z): ", end='')
+                col_letter = input().strip().upper()
+                param_col_idx = ord(col_letter) - ord('A')
+                if 0 <= param_col_idx < len(df.columns):
+                    param_col_name = df.columns[param_col_idx]
+                    print(f"Columna seleccionada: {param_col_name}")
                 else:
-                    print("✓ Dirección parametrizada")
-                    changed_count += 1
-                print("-" * 60)
+                    self.logger.error("Letra de columna inválida.")
+                    return False
             
-            # Actualizar estadísticas
-            self.stats['total_rows'] = len(df)
-            self.stats['processed'] = len(valid_addresses)
-            self.stats['errors'] = error_count
+            print(f"📍 Columna de direcciones: {address_col} (columna {chr(65+address_col_idx)})")
+            print(f"🎯 Columna de parametrización: {param_col_name} (columna {chr(65+param_col_idx)})")
             
-            # Guardar resultados
-            output_path = file_path.replace('.xlsx', '_parametrizado_corregido.xlsx')
-            df_filtered.to_excel(output_path, index=False)
+            # Procesar direcciones y crear diccionario de parametrización
+            valid_addresses = df[address_col].fillna("").astype(str)
+            self.parser.direcciones_procesadas = []
+            
+            print("🔄 Procesando direcciones...")
+            for i, addr in enumerate(valid_addresses):
+                if show_progress and i % 100 == 0:
+                    progress = (i / len(valid_addresses)) * 100
+                    print(f"   Progreso: {progress:.1f}% ({i}/{len(valid_addresses)})")
+                self.parser.parse_address(addr)
+            
+            procesadas = self.parser.get_direcciones_procesadas()
+            dict_param = {orig: param for orig, param in procesadas}
+            
+            # SOLO modificar el contenido de las celdas de parametrización
+            print("✏️  Actualizando celdas de parametrización...")
+            modificadas = 0
+            vaciadas = 0
+            
+            # Iterar sobre las filas de datos (saltando el header)
+            for row_idx in range(2, len(df) + 2):  # openpyxl usa índices base 1, y fila 1 es header
+                # Obtener la dirección original
+                direccion_cell = worksheet.cell(row=row_idx, column=address_col_idx + 1)
+                direccion_original = str(direccion_cell.value or "").strip()
+                
+                if not direccion_original:
+                    continue
+                
+                # Obtener la parametrización
+                parametrizada = dict_param.get(direccion_original, "NO APARECE DIRECCION")
+                
+                # Celda de parametrización
+                param_cell = worksheet.cell(row=row_idx, column=param_col_idx + 1)
+                
+                # Aplicar las reglas:
+                if parametrizada == "NO APARECE DIRECCION" or parametrizada == direccion_original:
+                    # Dejar la celda vacía (no necesita cambios o no se puede parametrizar)
+                    if param_cell.value is not None:
+                        param_cell.value = None
+                        vaciadas += 1
+                else:
+                    # Reemplazar con la versión corregida
+                    param_cell.value = parametrizada
+                    modificadas += 1
+            
+            # Guardar el archivo SIN cambiar formato
+            print("💾 Guardando cambios...")
+            workbook.save(file_path)
+            workbook.close()
             
             # Resumen final
             print(f"\n{'='*60}")
-            print("RESUMEN DE PROCESAMIENTO")
+            print("✅ PROCESAMIENTO COMPLETADO")
             print(f"{'='*60}")
-            print(f"Archivo guardado: {output_path}")
-            print(f"Total direcciones procesadas: {len(valid_addresses)}")
-            print(f"Direcciones parametrizadas: {changed_count}")
-            print(f"Direcciones sin cambios: {unchanged_count}")
-            print(f"Errores de parametrización: {error_count}")
-            print(f"Tasa de éxito: {((changed_count + unchanged_count) / len(valid_addresses) * 100):.1f}%")
+            print(f"📁 Archivo: {file_path}")
+            print(f"📊 Total direcciones procesadas: {len(valid_addresses)}")
+            print(f"✏️  Celdas modificadas: {modificadas}")
+            print(f"🧹 Celdas vaciadas: {vaciadas}")
+            print(f"🎨 Formato original preservado: ✅")
+            print(f"{'='*60}")
             
             return True
                 
@@ -207,15 +223,23 @@ class ExcelAddressProcessor:
             self.logger.error(f"Error procesando archivo: {str(e)}")
             return False
 
+    def process_excel_file(self, file_path: str = "Backlog250525-filtradocobertura.xlsx", 
+                          show_progress: bool = True) -> bool:
+        """
+        Método alias para mantener compatibilidad - llama al método principal
+        """
+        return self.process_excel_file_preserve_format(file_path, show_progress)
+
 
 # Código para ejecutar el procesamiento
 if __name__ == "__main__":
     processor = ExcelAddressProcessor()
     
-    # Procesar el archivo
+    # Procesar el archivo PRESERVANDO FORMATO
     success = processor.process_excel_file("Backlog250525-filtradocobertura.xlsx")
     
     if success:
         print("\n✅ Procesamiento completado exitosamente")
+        print("🎨 El formato original se ha preservado completamente")
     else:
         print("\n❌ Error en el procesamiento")
