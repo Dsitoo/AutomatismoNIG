@@ -56,43 +56,64 @@ class ExcelAddressProcessor:
         except Exception as e:
             return False, f"Error leyendo el archivo: {str(e)}"
     
+    def normalize_text(self, text: str) -> str:
+        """Normaliza el texto: quita acentos y convierte a mayúsculas"""
+        if not isinstance(text, str):
+            text = str(text)
+        text = text.upper().strip()
+        text = ''.join(c for c in unicodedata.normalize('NFD', text)
+                      if unicodedata.category(c) != 'Mn')
+        return text
+
+    def get_column_letter(self, col_index: int) -> str:
+        """Convierte índice de columna (0-based) a letra de columna de Excel"""
+        result = ""
+        while col_index >= 0:
+            result = chr(col_index % 26 + ord('A')) + result
+            col_index = col_index // 26 - 1
+        return result
+
     def detect_address_column(self, df: pd.DataFrame) -> Optional[str]:
         """Detectar columna de direcciones"""
-        possible_names = [
-            'Dirección principal', 'direccion principal', 'DIRECCION PRINCIPAL',
-            'Direccion', 'direccion', 'DIRECCION',
-            'Dirección', 'direccion', 'DIRECCION',
-            'Address', 'address', 'ADDRESS',
-            'Dir', 'dir', 'DIR'
-        ]
+        target_names = ['DIRECCION PRINCIPAL', 'DIRECCION PRINCI']
         
-        for col in df.columns:
-            if str(col).strip() in possible_names:
+        # Imprimir todas las columnas para debug
+        print("\nColumnas encontradas:")
+        for idx, col in enumerate(df.columns):
+            normalized = self.normalize_text(str(col))
+            col_letter = self.get_column_letter(idx)
+            print(f"{col_letter}: {col} -> {normalized}")
+            
+        # Buscar coincidencia por nombre normalizado
+        for idx, col in enumerate(df.columns):
+            normalized = self.normalize_text(str(col))
+            if any(target in normalized for target in target_names):
+                col_letter = self.get_column_letter(idx)
+                self.logger.info(f"Columna de direcciones encontrada: {col} en columna {col_letter}")
                 return col
-        
-        # Buscar por contenido
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                sample = df[col].dropna().head(5)
-                if len(sample) > 0:
-                    sample_text = ' '.join(sample.astype(str).str.upper())
-                    if any(word in sample_text for word in ['CALLE', 'CL', 'CARRERA', 'KR', 'CRA']):
-                        self.logger.info(f"Columna de direcciones detectada: {col}")
-                        return col
         
         return None
 
-    def normalize_colname(self, colname: str) -> str:
-        """Normaliza el nombre de columna quitando tildes y pasando a minúsculas"""
-        return ''.join(c for c in unicodedata.normalize('NFD', colname)
-                       if unicodedata.category(c) != 'Mn').lower()
+    def detect_param_column(self, df: pd.DataFrame) -> Tuple[Optional[str], Optional[int]]:
+        """Detectar columna de parametrización"""
+        target_names = ['PARAMETRIZACION', 'PRAMETRIZACION']
+        
+        # Buscar coincidencia por nombre normalizado
+        for idx, col in enumerate(df.columns):
+            normalized = self.normalize_text(str(col))
+            if any(target in normalized for target in target_names):
+                col_letter = self.get_column_letter(idx)
+                self.logger.info(f"Columna de parametrización encontrada: {col} en columna {col_letter}")
+                return col, idx
+                
+        return None, None
 
-    def process_excel_file_preserve_format(self, file_path: str = "Backlog250525-filtradocobertura.xlsx", 
-                                         show_progress: bool = True) -> bool:
-        """
-        Procesar archivo Excel PRESERVANDO TODO EL FORMATO ORIGINAL
-        SOLO modifica el contenido de las celdas de parametrización
-        """
+    def normalize_colname(self, colname: str) -> str:
+        """Normaliza el nombre de columna quitando tildes y pasando a mayúsculas"""
+        return ''.join(c for c in unicodedata.normalize('NFD', colname)
+                       if unicodedata.category(c) != 'Mn').upper()
+
+    def process_excel_file_preserve_format(self, file_path: str = "Backlog_GPON_FILTRADO.xlsx", show_progress: bool = True) -> bool:
         try:
             # Validar archivo
             is_valid, message = self.validate_file(file_path)
@@ -105,73 +126,90 @@ class ExcelAddressProcessor:
             
             # Usar openpyxl para preservar formato
             workbook = load_workbook(file_path)
-            worksheet = workbook.active
+            if "GPON" not in workbook.sheetnames:
+                self.logger.error("La hoja 'GPON' no existe en el archivo")
+                return False
+            worksheet = workbook["GPON"]
             
             # También leer con pandas para facilitar la detección de columnas
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(file_path, sheet_name="GPON")
             
-            # Normalizar nombres de columnas para evitar errores por tildes/mayúsculas
-            df.columns = [self.normalize_colname(str(col)) for col in df.columns]
+            # NO normalizar nombres de columnas aquí, trabajar con los originales
+            print(f"Total de columnas en la hoja 'GPON': {len(df.columns)}")
+            
             # Detectar columna de direcciones
-            address_col = self.detect_address_column(df)
-            if not address_col:
+            address_col_name = self.detect_address_column(df)
+            if not address_col_name:
                 self.logger.error("No se pudo detectar la columna de direcciones")
                 return False
             
-            # Encontrar índice de la columna de direcciones
-            address_col_idx = None
-            for idx, col in enumerate(df.columns):
-                if col == address_col:
-                    address_col_idx = idx
-                    break
-            
-            if address_col_idx is None:
-                self.logger.error("No se pudo encontrar el índice de la columna de direcciones")
-                return False
-            
             # Detectar columna de parametrización
-            param_col_name = None
-            param_col_idx = None
-            target_col = self.normalize_colname('Prametrización')
-            for idx, col in enumerate(df.columns):
-                norm_col = self.normalize_colname(str(col).replace('"','').replace("'",''))
-                if norm_col == target_col:
-                    param_col_name = col
-                    param_col_idx = idx
-                    break
+            param_col_name, param_col_idx = self.detect_param_column(df)
             
+            # Si no se encuentra, mostrar opciones y pedir al usuario
             if not param_col_name:
-                print("No se encontró columna de parametrización automáticamente.")
+                print("\n❌ No se encontró columna de parametrización automáticamente.")
                 print("Columnas disponibles:")
                 for i, col in enumerate(df.columns):
-                    print(f"  {chr(65+i)}: {col}")
+                    col_letter = self.get_column_letter(i)
+                    print(f"  {col_letter}: {col}")
                 print("Por favor, ingrese la letra de la columna de parametrización (ejemplo: Z): ", end='')
                 col_letter = input().strip().upper()
-                param_col_idx = ord(col_letter) - ord('A')
+                
+                # Convertir letra a índice (solo para columnas A-Z y AA-AZ)
+                if len(col_letter) == 1:
+                    param_col_idx = ord(col_letter) - ord('A')
+                elif len(col_letter) == 2 and col_letter[0] == 'A':
+                    param_col_idx = 26 + ord(col_letter[1]) - ord('A')
+                else:
+                    self.logger.error("Solo se soportan columnas A-Z y AA-AZ")
+                    return False
+                
                 if 0 <= param_col_idx < len(df.columns):
                     param_col_name = df.columns[param_col_idx]
                     print(f"Columna seleccionada: {param_col_name}")
                 else:
                     self.logger.error("Letra de columna inválida.")
                     return False
+        
+        # Encontrar índice de la columna de direcciones
+            address_col_idx = df.columns.get_loc(address_col_name)
             
-            print(f"📍 Columna de direcciones: {address_col} (columna {chr(65+address_col_idx)})")
-            print(f"🎯 Columna de parametrización: {param_col_name} (columna {chr(65+param_col_idx)})")
+            address_letter = self.get_column_letter(address_col_idx)
+            param_letter = self.get_column_letter(param_col_idx)
+            
+            print(f"📍 Columna de direcciones: {address_col_name} (columna {address_letter})")
+            print(f"🎯 Columna de parametrización: {param_col_name} (columna {param_letter})")
+            
+            # Verificar que los índices sean correctos
+            print(f"🔍 Verificación:")
+            print(f"   - Índice de direcciones: {address_col_idx} (debería ser {self.get_column_letter(address_col_idx)})")
+            print(f"   - Índice de parametrización: {param_col_idx} (debería ser {self.get_column_letter(param_col_idx)})")
             
             # Procesar solo filas visibles
             print("🔄 Procesando direcciones solo en filas visibles...")
             self.parser.direcciones_procesadas = []
             modificadas = 0
             vaciadas = 0
+            
             for row_idx in range(2, worksheet.max_row + 1):
+                # Verificar si la fila está oculta
                 if worksheet.row_dimensions[row_idx].hidden:
                     continue
+                
+                # Obtener la celda de dirección (índice + 1 porque openpyxl es 1-based)
                 direccion_cell = worksheet.cell(row=row_idx, column=address_col_idx + 1)
                 direccion_original = str(direccion_cell.value or "").strip()
+                
                 if not direccion_original:
                     continue
+                
+                # Procesar la dirección
                 parametrizada = self.parser.parse_address(direccion_original)
+                
+                # Obtener la celda de parametrización
                 param_cell = worksheet.cell(row=row_idx, column=param_col_idx + 1)
+                
                 if parametrizada == "NO APARECE DIRECCION":
                     if param_cell.value is not None:
                         param_cell.value = None
@@ -179,7 +217,7 @@ class ExcelAddressProcessor:
                 else:
                     param_cell.value = parametrizada
                     modificadas += 1
-            
+        
             # Guardar el archivo SIN cambiar formato
             print("💾 Guardando cambios...")
             workbook.save(file_path)
@@ -196,7 +234,7 @@ class ExcelAddressProcessor:
             print(f"{'='*60}")
             
             return True
-                
+            
         except Exception as e:
             self.logger.error(f"Error procesando archivo: {str(e)}")
             return False
@@ -214,7 +252,7 @@ if __name__ == "__main__":
     processor = ExcelAddressProcessor()
     
     # Procesar el archivo PRESERVANDO FORMATO
-    success = processor.process_excel_file("Backlog250525-filtradocobertura.xlsx")
+    success = processor.process_excel_file("Backlog_GPON_FILTRADO.xlsx")
     
     if success:
         print("\n✅ Procesamiento completado exitosamente")
