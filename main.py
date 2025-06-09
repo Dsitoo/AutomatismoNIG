@@ -25,7 +25,22 @@ except ImportError as e:
 
 def main():
     try:
-        run_automation()
+        # Inicializar el procesador
+        processor = ExcelAddressProcessor()
+        
+        # Nombre del archivo Excel a procesar
+        excel_file = "Backlog_GPON_FILTRADO.xlsx"
+        
+        print(f"\nIniciando procesamiento de: {excel_file}")
+        print("=" * 50)
+        
+        # Procesar el archivo
+        result = processor.process_excel_file(excel_file)
+        
+        if not result:
+            print("\n❌ Error: El procesamiento no se completó correctamente")
+            sys.exit(1)
+            
     except Exception as e:
         print(f"\n❌ Error inesperado: {str(e)}")
 
