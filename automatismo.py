@@ -21,10 +21,12 @@ class AddressAutomation:
         self.default_address = "KR 13 81 37"  # Dirección por defecto para pruebas
         self.download_folder = os.path.expanduser('~/Downloads')
         self.results_folder = 'C:/Resultados'
-        self.addresses = ["KR 13 81 37", "CL 57 13 62"]
+        self.addresses = ["KR 13 81 37", "CL 24C SUR 48 94", "CL 57 13 62"]
         self.current_address = None
         # Agregar diccionario para almacenar información
         self.address_data = {}  # Estructura: {dirección: {datos...}}
+        self.not_found_addresses = []  # Lista de direcciones no encontradas
+        self.found_addresses = {}  # Diccionario para almacenar {dirección_encontrada: dirección_original}
         # Eliminar default_address ya que usaremos current_address
         self.setup_driver()
 
@@ -65,7 +67,7 @@ class AddressAutomation:
             # Primer clic en el centro del navegador
             print("Haciendo clic en el centro del navegador...")
             pyautogui.click(center_x, center_y)
-            time.sleep(2)
+            time.sleep(4)
             
             # Clic en el botón "Allow Now" - está en la parte superior izquierda
             print("Haciendo clic en 'Allow Now'...")
@@ -76,6 +78,20 @@ class AddressAutomation:
             
             print("Silverlight activado")
             
+            # Preguntar si la interfaz cargó correctamente después de activar Silverlight
+            while True:
+                response = input("\n¿La interfaz cargó correctamente? (s/n): ").lower()
+                if response == 'n':
+                    print("Deteniendo automatización por fallo en carga de interfaz...")
+                    self.driver.quit()
+                    exit()
+                elif response == 's':
+                    print("Continuando automatización en 5 segundos...")
+                    time.sleep(5)
+                    break
+                else:
+                    print("Por favor responda 's' para sí o 'n' para no")
+                    
         except Exception as e:
             print(f"Error activando Silverlight: {str(e)}")
 
@@ -83,7 +99,7 @@ class AddressAutomation:
         """Hacer clic en el botón de la barra de herramientas"""
         try:
             print("Esperando que cargue la interfaz...")
-            time.sleep(5)
+            time.sleep(2)
             
             # Obtener posición de la ventana
             window = self.driver.get_window_position()
@@ -105,7 +121,7 @@ class AddressAutomation:
         """Hacer clic en el botón New Query usando coordenadas"""
         try:
             print("Esperando que cargue la interfaz...")
-            time.sleep(2)  # Dar más tiempo para que cargue
+            time.sleep(4)  # Dar más tiempo para que cargue
             
             # Obtener posición de la ventana
             window = self.driver.get_window_position()
@@ -449,8 +465,8 @@ class AddressAutomation:
             pyautogui.click(export_x, export_y)
             time.sleep(0.5)
             
-            # Clic en Save File (misma X pero 100px arriba del punto anterior)
-            save_y = export_y - 100
+            # Clic en Save File (misma X pero 80px menos)
+            save_y = export_y - 80  # Modificado a -80px
             print("Haciendo clic en Save File...")
             pyautogui.click(export_x, save_y)
             time.sleep(0.5)
@@ -522,10 +538,16 @@ class AddressAutomation:
                 time.sleep(0.5)
             
             print(f"Timeout después de {timeout} segundos")
+            # Si no se encontró el archivo, agregar la dirección actual a not_found_addresses
+            if self.current_address not in self.not_found_addresses:
+                self.not_found_addresses.append(self.current_address)
             return None
             
         except Exception as e:
             print(f"Error manejando archivo Excel: {str(e)}")
+            # También agregar a not_found_addresses en caso de error
+            if self.current_address not in self.not_found_addresses:
+                self.not_found_addresses.append(self.current_address)
             return None
 
     def get_nap_status(self):
@@ -617,6 +639,60 @@ class AddressAutomation:
         except Exception as e:
             print(f"Error general: {str(e)}")
 
+    def reduce_address_parameters(self, address):
+        """Reducir parámetros de la dirección"""
+        parts = address.split()
+        if len(parts) <= 3:  # Si ya tiene 3 o menos parámetros, no se puede reducir más
+            return None
+        return ' '.join(parts[:-1])  # Eliminar último parámetro
+
+    def process_search_result(self, address):
+        """Procesar resultado de búsqueda y manejar reducciones"""
+        original_address = address
+        current_try = address
+        
+        while True:
+            self.current_address = current_try
+            print(f"\nBuscando dirección: {current_try}")
+            
+            # Realizar búsqueda
+            self.click_actual_count()
+            time.sleep(1)
+            self.click_name()
+            time.sleep(1)
+            self.click_equals()
+            time.sleep(1)
+            self.click_is_like()
+            time.sleep(1)
+            self.click_value()
+            time.sleep(1)
+            self.click_add_to_list()
+            self.click_search()
+            self.minimize_window()
+            self.click_go_to()
+            self.set_scale()
+            self.draw_selection_box()
+            
+            # Descargar y procesar Excel
+            self.get_association_value(save_to_excel=True)
+            self.handle_download_dialog()
+            excel_path = self.handle_excel_file()
+            
+            if excel_path and os.path.exists(excel_path):
+                print(f"Información encontrada para: {current_try}")
+                self.found_addresses[original_address] = current_try
+                return True
+                
+            # Si no se encontró, reducir parámetros
+            next_try = self.reduce_address_parameters(current_try)
+            if not next_try:
+                print(f"No se encontró información para: {original_address}")
+                self.not_found_addresses.append(original_address)
+                return False
+                
+            current_try = next_try
+            print(f"Intentando con menos parámetros: {current_try}")
+
     def update_backlog(self):
         """Actualizar Backlog con toda la información recolectada"""
         try:
@@ -634,10 +710,23 @@ class AddressAutomation:
             nombre_mol_col = 30 # Columna AD - Nombre de la molecula
             estado_mol_col = 31 # Columna AE - Estado Molecula
             
+            red_font = openpyxl.styles.Font(color='FF0000')
+            
             # Actualizar datos para cada dirección
             for row in range(2, sheet.max_row + 1):
                 direccion = sheet.cell(row=row, column=param_col).value
-                if direccion in self.address_data:
+                
+                if direccion in self.not_found_addresses:
+                    # Marcar en rojo y agregar nota
+                    cell = sheet.cell(row=row, column=param_col)
+                    cell.font = red_font
+                    cell.value = f"{direccion} no aparece direccion"
+                    # Limpiar otras columnas
+                    for col in [dentro_mol_col, asoc_col, prop_mol_col, nombre_mol_col, estado_mol_col]:
+                        sheet.cell(row=row, column=col, value='')
+                
+                elif direccion in self.address_data:
+                    # Actualizar normalmente con los datos encontrados
                     data = self.address_data[direccion]
                     sheet.cell(row=row, column=dentro_mol_col, value=data['dentro_molecula'])
                     sheet.cell(row=row, column=asoc_col, value=data['asociado'])
@@ -734,14 +823,74 @@ class AddressAutomation:
                 excel_path = self.handle_excel_file()
                 if excel_path:
                     self.process_excel_files(excel_path)
-                
+                else:
+                    print(f"No se encontró información para: {address}")
+                    
                 # Restaurar para siguiente dirección si no es la última
                 if idx < len(self.addresses) - 1:
                     self.click_default_button()
                     time.sleep(1)
                     self.click_clear()
             
-            # Actualizar Backlog al final con toda la información
+            # Primera actualización del Backlog
+            self.update_backlog()
+            
+            # Restaurar interfaz antes de procesar direcciones no encontradas
+            self.click_default_button()
+            time.sleep(1)
+            self.click_clear()
+            
+            # Procesar direcciones no encontradas
+            if self.not_found_addresses:
+                print("\nProcesando direcciones no encontradas con menos parámetros...")
+                addresses_to_retry = self.not_found_addresses.copy()
+                self.not_found_addresses = []  # Limpiar para nuevo intento
+                
+                for address in addresses_to_retry:
+                    current_address = address
+                    while True:
+                        parts = current_address.split()
+                        if len(parts) <= 3:
+                            # Si llegamos a 3 parámetros sin éxito, marcar como no encontrada
+                            self.not_found_addresses.append(address)
+                            break
+                            
+                        # Quitar último parámetro
+                        current_address = ' '.join(parts[:-1])
+                        print(f"\nReintentando con dirección reducida: {current_address}")
+                        
+                        # Intentar búsqueda con dirección reducida...
+                        self.current_address = current_address
+                        self.click_actual_count()
+                        time.sleep(1)
+                        self.click_name()
+                        time.sleep(1)
+                        self.click_equals()
+                        time.sleep(1)
+                        self.click_is_like()
+                        time.sleep(1)
+                        self.click_value()
+                        time.sleep(1)
+                        self.click_add_to_list()
+                        self.click_search()
+                        self.minimize_window()
+                        self.click_go_to()
+                        self.set_scale()
+                        self.draw_selection_box()
+                        
+                        # Descargar y procesar Excel
+                        self.get_association_value(save_to_excel=True)
+                        self.handle_download_dialog()
+                        excel_path = self.handle_excel_file()
+                        
+                        if excel_path:
+                            # Si encontramos con parámetros reducidos, guardar con dirección original
+                            self.process_excel_files(excel_path)
+                            self.address_data[address] = self.address_data[current_address]
+                            del self.address_data[current_address]  # Limpiar entrada temporal
+                            break
+            
+            # Actualización final del Backlog
             self.update_backlog()
             
             input("Presiona Enter para cerrar...")
