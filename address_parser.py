@@ -1,6 +1,7 @@
 import re
 from functools import lru_cache
 from typing import Optional, Dict, List, Tuple
+import pandas as pd
 
 class OptimizedAddressParser:
     """
@@ -440,6 +441,13 @@ class OptimizedAddressParser:
         ]
         
         return any(re.match(pattern, direccion) for pattern in std_patterns)
+
+    def get_direcciones_procesadas(self, file_path):
+        # Specify the engine explicitly
+        df = pd.read_excel(file_path, engine='openpyxl')
+        # Process the dataframe to extract addresses
+        direcciones = df['Parametrización'].dropna().tolist()
+        return [(idx, direccion) for idx, direccion in enumerate(direcciones)]
 
     def get_direcciones_procesadas(self):
         return self.direcciones_procesadas

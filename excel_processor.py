@@ -51,7 +51,7 @@ class ExcelAddressProcessor:
             return False, f"El archivo debe ser Excel (.xlsx o .xls)"
         
         try:
-            pd.read_excel(file_path, nrows=1)
+            pd.read_excel(file_path, nrows=1, engine='openpyxl')
             return True, "Archivo válido"
         except Exception as e:
             return False, f"Error leyendo el archivo: {str(e)}"
@@ -132,7 +132,7 @@ class ExcelAddressProcessor:
             worksheet = workbook["GPON"]
             
             # También leer con pandas para facilitar la detección de columnas
-            df = pd.read_excel(file_path, sheet_name="GPON")
+            df = pd.read_excel(file_path, sheet_name="GPON", engine='openpyxl')
             
             # NO normalizar nombres de columnas aquí, trabajar con los originales
             print(f"Total de columnas en la hoja 'GPON': {len(df.columns)}")
@@ -245,6 +245,12 @@ class ExcelAddressProcessor:
         Método alias para mantener compatibilidad - llama al método principal
         """
         return self.process_excel_file_preserve_format(file_path, show_progress)
+
+    def get_addresses_from_column(self, file_path, column):
+        # Specify the engine explicitly
+        df = pd.read_excel(file_path, engine='openpyxl')
+        # Extract addresses from the specified column
+        return df[column].dropna().tolist()
 
 
 # Código para ejecutar el procesamiento

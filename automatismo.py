@@ -13,7 +13,7 @@ import xlrd  # Agregar esta importación
 import openpyxl # Agregar esta importación
 
 class AddressAutomation:
-    def __init__(self):
+    def __init__(self, addresses):
         self.firefox_path = r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
         self.url = "http://10.112.1.55:8080/NIG-Client-PB/"
         self.username = "clauhert"
@@ -21,7 +21,7 @@ class AddressAutomation:
         self.default_address = "KR 13 81 37"  # Dirección por defecto para pruebas
         self.download_folder = os.path.expanduser('~/Downloads')
         self.results_folder = 'C:/Resultados'
-        self.addresses = ["KR 13 81 37", "CL 24C SUR 48 94", "CL 57 13 62"]
+        self.addresses = addresses  # Assign addresses dynamically
         self.current_address = None
         # Agregar diccionario para almacenar información
         self.address_data = {}  # Estructura: {dirección: {datos...}}
@@ -903,7 +903,8 @@ class AddressAutomation:
                 self.driver.quit()
 
 def run_automation():
-    automation = AddressAutomation()
+    from main import parametrized_addresses  # Import the list of addresses from main.py
+    automation = AddressAutomation(parametrized_addresses)
 
 if __name__ == "__main__":
     run_automation()
