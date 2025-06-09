@@ -246,11 +246,29 @@ class ExcelAddressProcessor:
         """
         return self.process_excel_file_preserve_format(file_path, show_progress)
 
-    def get_addresses_from_column(self, file_path, column):
-        # Specify the engine explicitly
-        df = pd.read_excel(file_path, engine='openpyxl')
-        # Extract addresses from the specified column
-        return df[column].dropna().tolist()
+    def get_addresses_from_column(self, file_path, column, sheet_name='GPON'):
+        """Obtener direcciones de una columna específica"""
+        try:
+            df = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
+            return df[column].dropna().tolist()
+        except KeyError:
+            print(f"\n⚠️  Columna '{column}' no encontrada en la hoja {sheet_name}")
+            print("📊 Columnas disponibles:")
+            for col in df.columns:
+                print(f"   - {col}")
+            raise
+        except Exception as e:
+            print(f"❌ Error leyendo el archivo: {str(e)}")
+            return []
+
+    def get_column_names(self, excel_file: str) -> List[str]:
+        """Retorna lista de nombres de columnas disponibles en el archivo"""
+        try:
+            df = pd.read_excel(excel_file)
+            return df.columns.tolist()
+        except Exception as e:
+            print(f"Error obteniendo nombres de columnas: {str(e)}")
+            return []
 
 
 # Código para ejecutar el procesamiento

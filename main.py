@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Sistema de Parametrización de Direcciones - Menú Principal
-Versión optimizada con interfaz mejorada y funcionalidades avanzadas
 """
 
 import os
@@ -10,13 +9,13 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 # Importar módulos propios
 try:
     from excel_processor import ExcelAddressProcessor
     from address_parser import OptimizedAddressParser 
-    from automatismo import AddressAutomation
+    from automatismo import run_automation
 except ImportError as e:
     print(f"❌ Error importando módulos: {e}")
     print("   Asegúrese de que todos los módulos necesarios estén instalados.")
@@ -27,38 +26,42 @@ def main():
         print("🚀 Iniciando Sistema de Parametrización de Direcciones")
         print("=" * 60)
         
+        # Preguntar por parametrización
+        while True:
+            response = input("¿El documento Backlog_GPON_FILTRADO ya se encuentra parametrizado? (s/n): ").lower()
+            if response in ['s', 'n']:
+                break
+            print("Por favor, responda 's' para sí o 'n' para no")
+
         # Inicializar el procesador de Excel
         processor = ExcelAddressProcessor()
-        
-        # Nombre del archivo Excel a procesar
         excel_file = "Backlog_GPON_FILTRADO.xlsx"
         
-        # Verificar si el archivo existe
+        # Verificar archivo
         if not os.path.exists(excel_file):
-            # Intentar con archivo alternativo
-            excel_file = "Backlog250525-filtradocobertura.xlsx"
-            if not os.path.exists(excel_file):
-                print(f"❌ Error: No se encontró ningún archivo Excel válido")
-                print("   Archivos buscados:")
-                print("   - Backlog_GPON_FILTRADO.xlsx")
-                print("   - Backlog250525-filtradocobertura.xlsx")
-                sys.exit(1)
-        
-        print(f"📂 Archivo encontrado: {excel_file}")
-        print(f"📊 Iniciando procesamiento...")
-        print("-" * 50)
-        
-        # Procesar el archivo Excel
-        result = processor.process_excel_file(excel_file)
-        
-        if not result:
-            print("\n❌ Error: El procesamiento del Excel no se completó correctamente")
+            print(f"❌ Error: No se encontró el archivo {excel_file}")
             sys.exit(1)
-        
-        # Extraer direcciones parametrizadas desde la columna "Parametrización"
-        print("\n🔍 Extrayendo direcciones parametrizadas...")
-        parametrized_addresses = processor.get_addresses_from_column(excel_file, column='Parametrización')
-        
+            
+        print(f"📂 Archivo encontrado: {excel_file}")
+
+        # Procesar Excel solo si no está parametrizado
+        if response == 'n':
+            print("📊 Iniciando parametrización...")
+            result = processor.process_excel_file(excel_file)
+            if not result:
+                print("\n❌ Error: La parametrización no se completó correctamente")
+                sys.exit(1)
+        else:
+            print("⏭️  Saltando parametrización...")
+
+        # Extraer direcciones parametrizadas
+        print("\n🔍 Extrayendo direcciones de la columna Prametrización...")
+        try:
+            parametrized_addresses = processor.get_addresses_from_column(excel_file, column='Prametrización')
+        except Exception as e:
+            print(f"❌ Error leyendo direcciones: {str(e)}")
+            sys.exit(1)
+
         if not parametrized_addresses:
             # Si no hay direcciones en Parametrización, intentar procesarlas desde otra columna
             print("⚠️  No se encontraron direcciones en la columna 'Parametrización'")
@@ -98,7 +101,10 @@ def main():
         
         # Ejecutar automatización
         print("\n🔄 Ejecutando automatización...")
-        automation = AddressAutomation(parametrized_addresses)
+        # Ejecutar el automatismo con las direcciones parametrizadas
+        automation = run_automation()
+        automation.addresses = parametrized_addresses
+        automation.setup_driver()  # Reiniciar el driver con las nuevas direcciones
         
         print("✅ Automatización completada exitosamente")
         

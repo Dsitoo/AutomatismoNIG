@@ -13,15 +13,14 @@ import xlrd  # Agregar esta importación
 import openpyxl # Agregar esta importación
 
 class AddressAutomation:
-    def __init__(self, addresses):
+    def __init__(self):
         self.firefox_path = r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe"
         self.url = "http://10.112.1.55:8080/NIG-Client-PB/"
         self.username = "clauhert"
         self.password = "clauhert"
-        self.default_address = "KR 13 81 37"  # Dirección por defecto para pruebas
         self.download_folder = os.path.expanduser('~/Downloads')
         self.results_folder = 'C:/Resultados'
-        self.addresses = addresses  # Assign addresses dynamically
+        self.addresses = self.load_addresses_from_excel()
         self.current_address = None
         # Agregar diccionario para almacenar información
         self.address_data = {}  # Estructura: {dirección: {datos...}}
@@ -29,6 +28,21 @@ class AddressAutomation:
         self.found_addresses = {}  # Diccionario para almacenar {dirección_encontrada: dirección_original}
         # Eliminar default_address ya que usaremos current_address
         self.setup_driver()
+
+    def load_addresses_from_excel(self):
+        """Cargar direcciones desde el archivo Excel"""
+        try:
+            excel_file = "Backlog_GPON_FILTRADO.xlsx"
+            df = pd.read_excel(excel_file, sheet_name='GPON')
+            # Obtener direcciones de la columna 'Prametrización' o columna N
+            addresses = df['Prametrización'].dropna().tolist()
+            if not addresses:  # Si no hay en Prametrización, intentar columna N
+                addresses = df.iloc[:, 13].dropna().tolist()  # Columna N es índice 13 (0-based)
+            print(f"✅ Cargadas {len(addresses)} direcciones del Excel")
+            return addresses
+        except Exception as e:
+            print(f"❌ Error cargando direcciones: {str(e)}")
+            return []
 
     def login(self):
         """Realizar el proceso de login"""
@@ -67,7 +81,7 @@ class AddressAutomation:
             # Primer clic en el centro del navegador
             print("Haciendo clic en el centro del navegador...")
             pyautogui.click(center_x, center_y)
-            time.sleep(4)
+            time.sleep(2)
             
             # Clic en el botón "Allow Now" - está en la parte superior izquierda
             print("Haciendo clic en 'Allow Now'...")
@@ -121,7 +135,7 @@ class AddressAutomation:
         """Hacer clic en el botón New Query usando coordenadas"""
         try:
             print("Esperando que cargue la interfaz...")
-            time.sleep(4)  # Dar más tiempo para que cargue
+            time.sleep(3)  # Dar más tiempo para que cargue
             
             # Obtener posición de la ventana
             window = self.driver.get_window_position()
@@ -142,7 +156,7 @@ class AddressAutomation:
         """Hacer clic en la opción GIS"""
         try:
             print("Haciendo clic en GIS...")
-            time.sleep(1)
+            time.sleep(0.2)
             
             # Obtener posición de la ventana
             window = self.driver.get_window_position()
@@ -163,7 +177,7 @@ class AddressAutomation:
         """Hacer clic en la opción Address"""
         try:
             print("Haciendo clic en Address...")
-            time.sleep(1)
+            time.sleep(0.2)
             
             # Obtener posición de la ventana
             window = self.driver.get_window_position()
@@ -184,7 +198,7 @@ class AddressAutomation:
         """Hacer clic en el botón Next"""
         try:
             print("Haciendo clic en Next...")
-            time.sleep(1)
+            time.sleep(0.7)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -204,7 +218,7 @@ class AddressAutomation:
         """Hacer clic en Actual Count"""
         try:
             print("Haciendo clic en Actual Count...")
-            time.sleep(1)
+            time.sleep(0.2)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -224,7 +238,7 @@ class AddressAutomation:
         """Hacer clic en el campo Name"""
         try:
             print("Haciendo clic en Name...")
-            time.sleep(1)
+            time.sleep(0.5)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -244,7 +258,7 @@ class AddressAutomation:
         """Hacer clic en el campo Equals"""
         try:
             print("Haciendo clic en Equals...")
-            time.sleep(1)
+            time.sleep(0.2)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -264,7 +278,7 @@ class AddressAutomation:
         """Hacer clic en Is Like"""
         try:
             print("Haciendo clic en Is Like...")
-            time.sleep(1)
+            time.sleep(0.5)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -284,7 +298,7 @@ class AddressAutomation:
         """Hacer clic en el campo Value y escribir la dirección"""
         try:
             print("Haciendo clic en Value...")
-            time.sleep(1)
+            time.sleep(0.5)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -309,7 +323,7 @@ class AddressAutomation:
         """Hacer clic en Add to List"""
         try:
             print("Haciendo clic en Add to List...")
-            time.sleep(1)
+            time.sleep(0.7)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -329,7 +343,7 @@ class AddressAutomation:
         """Hacer clic en Search"""
         try:
             print("Haciendo clic en Search...")
-            time.sleep(1)
+            time.sleep(0.5)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -584,18 +598,28 @@ class AddressAutomation:
         try:
             print("Procesando archivos Excel...")
             
-            # Obtener datos del Excel
             try:
                 workbook = xlrd.open_workbook(data_path)
                 sheet = workbook.sheet_by_name('Address')
                 
-                # Buscar el índice de la columna 'Asociacion'
+                # Buscar índices de las columnas
                 header_row = sheet.row_values(0)
+                name_col = header_row.index('Name')
                 asociacion_col = header_row.index('Asociacion')
-                asociacion_valor = sheet.cell_value(1, asociacion_col) if sheet.nrows > 1 else None
                 
-                # Convertir valor
-                valor_final = 'Si' if str(asociacion_valor).lower() == 'true' else 'No'
+                # Buscar la fila que contiene la dirección actual
+                asociacion_valor = None
+                for row in range(1, sheet.nrows):
+                    name_value = str(sheet.cell_value(row, name_col))
+                    if self.current_address.strip('*') in name_value:
+                        asociacion_valor = sheet.cell_value(row, asociacion_col)
+                        break
+                
+                # Si no se encontró la dirección, marcar como no asociado
+                if asociacion_valor is None:
+                    valor_final = 'No'
+                else:
+                    valor_final = 'Si' if str(asociacion_valor).lower() == 'true' else 'No'
                 
                 # Verificar hoja Molecula
                 tiene_hoja_molecula = 'Molecula' in workbook.sheet_names()
@@ -764,12 +788,12 @@ class AddressAutomation:
 
     def setup_driver(self):
         try:
-            # Configuración básica de Firefox
             print("Iniciando Firefox...")
-            options = webdriver.FirefoxProfile()
-            options.set_preference("browser.startup.page", 0)
+            profile = webdriver.FirefoxProfile()
+            profile.set_preference("browser.startup.page", 0)
             
-            self.driver = webdriver.Firefox(firefox_profile=options)
+            # Usar sintaxis de Selenium 2.53.6
+            self.driver = webdriver.Firefox(firefox_profile=profile)
             print("Firefox iniciado")
             
             # Navegar y hacer login
@@ -903,8 +927,7 @@ class AddressAutomation:
                 self.driver.quit()
 
 def run_automation():
-    from main import parametrized_addresses  # Import the list of addresses from main.py
-    automation = AddressAutomation(parametrized_addresses)
+    automation = AddressAutomation()
 
 if __name__ == "__main__":
     run_automation()
