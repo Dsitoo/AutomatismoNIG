@@ -34,12 +34,37 @@ class AddressAutomation:
         try:
             excel_file = "Backlog_GPON_FILTRADO.xlsx"
             df = pd.read_excel(excel_file, sheet_name='GPON')
-            # Obtener direcciones de la columna 'Prametrización' o columna N
-            addresses = df['Prametrización'].dropna().tolist()
-            if not addresses:  # Si no hay en Prametrización, intentar columna N
-                addresses = df.iloc[:, 13].dropna().tolist()  # Columna N es índice 13 (0-based)
-            print(f"✅ Cargadas {len(addresses)} direcciones del Excel")
-            return addresses
+            
+            # Definir las columnas requeridas
+            required_columns = [
+                'Dentro molecula Gpon',
+                'Asociado molecula',
+                'Propietario Molecula',
+                'Nombre de la moleula',
+                'Estado Molecula'
+            ]
+            
+            # Crear máscara para filtrar filas con al menos una columna vacía
+            mask = df[required_columns].isna().any(axis=1)
+            
+            # Obtener direcciones únicas que necesitan procesamiento
+            unique_addresses = df.loc[mask, 'Prametrización'].drop_duplicates().dropna().tolist()
+            
+            # Crear diccionario de índices por dirección para procesamiento posterior
+            self.address_indices = {}
+            for idx, row in df.iterrows():
+                addr = row['Prametrización']
+                if addr in unique_addresses:
+                    if addr not in self.address_indices:
+                        self.address_indices[addr] = []
+                    self.address_indices[addr].append(idx)
+            
+            print(f"✅ Cargadas {len(unique_addresses)} direcciones únicas por procesar")
+            if len(unique_addresses) == 0:
+                print("ℹ️ No se encontraron direcciones que requieran procesamiento")
+            
+            return unique_addresses
+            
         except Exception as e:
             print(f"❌ Error cargando direcciones: {str(e)}")
             return []
@@ -736,28 +761,32 @@ class AddressAutomation:
             
             red_font = openpyxl.styles.Font(color='FF0000')
             
-            # Actualizar datos para cada dirección
-            for row in range(2, sheet.max_row + 1):
-                direccion = sheet.cell(row=row, column=param_col).value
-                
-                if direccion in self.not_found_addresses:
-                    # Marcar en rojo y agregar nota
-                    cell = sheet.cell(row=row, column=param_col)
-                    cell.font = red_font
-                    cell.value = f"{direccion} no aparece direccion"
-                    # Limpiar otras columnas
-                    for col in [dentro_mol_col, asoc_col, prop_mol_col, nombre_mol_col, estado_mol_col]:
-                        sheet.cell(row=row, column=col, value='')
-                
-                elif direccion in self.address_data:
-                    # Actualizar normalmente con los datos encontrados
+            # Actualizar datos para cada dirección incluyendo duplicados
+            for direccion, indices in self.address_indices.items():
+                data = None
+                if direccion in self.address_data:
                     data = self.address_data[direccion]
-                    sheet.cell(row=row, column=dentro_mol_col, value=data['dentro_molecula'])
-                    sheet.cell(row=row, column=asoc_col, value=data['asociado'])
-                    sheet.cell(row=row, column=prop_mol_col, value=data['propietario'])
-                    sheet.cell(row=row, column=nombre_mol_col, value=data['codigo_macro'])
-                    sheet.cell(row=row, column=estado_mol_col, value=data['estado_nap'])
-                    print(f"Actualizada dirección: {direccion}")
+                elif direccion in self.not_found_addresses:
+                    # Marcar todas las instancias como no encontradas
+                    for idx in indices:
+                        row = idx + 2  # +2 porque Excel empieza en 1 y tiene header
+                        cell = sheet.cell(row=row, column=param_col)
+                        cell.font = red_font
+                        cell.value = f"{direccion} no aparece direccion"
+                        for col in [dentro_mol_col, asoc_col, prop_mol_col, nombre_mol_col, estado_mol_col]:
+                            sheet.cell(row=row, column=col, value='')
+                    continue
+                
+                # Actualizar todas las instancias con la misma información
+                if data:
+                    for idx in indices:
+                        row = idx + 2
+                        sheet.cell(row=row, column=dentro_mol_col, value=data['dentro_molecula'])
+                        sheet.cell(row=row, column=asoc_col, value=data['asociado'])
+                        sheet.cell(row=row, column=prop_mol_col, value=data['propietario'])
+                        sheet.cell(row=row, column=nombre_mol_col, value=data['codigo_macro'])
+                        sheet.cell(row=row, column=estado_mol_col, value=data['estado_nap'])
+                    print(f"Actualizada dirección {direccion} en {len(indices)} ubicaciones")
             
             workbook.save(backlog_path)
             print("Backlog actualizado exitosamente")
