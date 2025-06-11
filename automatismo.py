@@ -44,10 +44,31 @@ class AddressAutomation:
                 'Estado Molecula'
             ]
             
-            # Crear máscara para filtrar filas con al menos una columna vacía
-            mask = df[required_columns].isna().any(axis=1)
+            def needs_processing(row):
+                """Verificar si una fila necesita ser procesada"""
+                values = [str(row[col]).strip().upper() for col in required_columns]
+                
+                # Si todos los campos están vacíos o son N/A, necesita procesamiento
+                all_empty_or_na = all(v in ['', 'N/A', 'NAN', 'NONE', 'NULL'] for v in values)
+                if all_empty_or_na:
+                    return True
+                
+                # Si al menos un campo está vacío o es N/A, necesita procesamiento
+                any_empty_or_na = any(v in ['', 'N/A', 'NAN', 'NONE', 'NULL'] for v in values)
+                if any_empty_or_na:
+                    return True
+                
+                # Caso especial: Si 'Dentro molecula Gpon' es 'No', verificar que los demás campos sean 'N/A'
+                # excepto 'Asociado molecula' que debe ser 'No'
+                if values[0] == 'NO':  # Dentro molecula Gpon
+                    expected = ['NO', 'NO', 'N/A', 'N/A', 'N/A']
+                    return values != expected
+                
+                # Si todos los campos tienen información válida, no necesita procesamiento
+                return False
             
-            # Obtener direcciones únicas que necesitan procesamiento
+            # Filtrar direcciones que necesitan procesamiento
+            mask = df.apply(needs_processing, axis=1)
             unique_addresses = df.loc[mask, 'Prametrización'].drop_duplicates().dropna().tolist()
             
             # Crear diccionario de índices por dirección para procesamiento posterior
@@ -59,7 +80,10 @@ class AddressAutomation:
                         self.address_indices[addr] = []
                     self.address_indices[addr].append(idx)
             
-            print(f"✅ Cargadas {len(unique_addresses)} direcciones únicas por procesar")
+            print(f"\n📊 Análisis de direcciones:")
+            print(f"✅ Total de direcciones únicas por procesar: {len(unique_addresses)}")
+            print(f"ℹ️ Direcciones omitidas por tener información completa: {len(df) - len(unique_addresses)}")
+            
             if len(unique_addresses) == 0:
                 print("ℹ️ No se encontraron direcciones que requieran procesamiento")
             
@@ -92,7 +116,7 @@ class AddressAutomation:
     def handle_silverlight(self):
         """Manejar activación de Silverlight"""
         try:
-            print("Esperando prompt de Silverlight...")
+            
             time.sleep(2)
             
             # Obtener la posición y tamaño de la ventana activa del navegador
@@ -104,12 +128,12 @@ class AddressAutomation:
             center_y = window['y'] + (size['height'] // 2)
             
             # Primer clic en el centro del navegador
-            print("Haciendo clic en el centro del navegador...")
+            print("Activando permisos de SilverLight...")
             pyautogui.click(center_x, center_y)
-            time.sleep(2)
+            time.sleep(1.5)
             
             # Clic en el botón "Allow Now" - está en la parte superior izquierda
-            print("Haciendo clic en 'Allow Now'...")
+            
             # El botón aparece aproximadamente a 115px desde la izquierda y 90px desde arriba
             allow_x = window['x'] + 110
             allow_y = window['y'] + 150
@@ -137,7 +161,7 @@ class AddressAutomation:
     def click_default_button(self):
         """Hacer clic en el botón de la barra de herramientas"""
         try:
-            print("Esperando que cargue la interfaz...")
+            
             time.sleep(2)
             
             # Obtener posición de la ventana
@@ -149,9 +173,9 @@ class AddressAutomation:
             button_x = window['x'] + int(size['width'] * 0.84)  # 85% del ancho
             button_y = window['y'] + 120  # Altura de la barra de herramientas
             
-            print(f"Haciendo clic en coordenadas: x={button_x}, y={button_y}")
+           
             pyautogui.click(button_x, button_y)
-            print("Clic realizado en las coordenadas especificadas")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en botón: {str(e)}")
@@ -159,7 +183,7 @@ class AddressAutomation:
     def click_new_query(self):
         """Hacer clic en el botón New Query usando coordenadas"""
         try:
-            print("Esperando que cargue la interfaz...")
+            print("Iniciando formulario de busqueda...")
             time.sleep(3)  # Dar más tiempo para que cargue
             
             # Obtener posición de la ventana
@@ -170,9 +194,9 @@ class AddressAutomation:
             query_x = window['x'] + int(size['width'] * 0.45)  # 50% del ancho
             query_y = window['y'] + 160  # Misma altura que el botón anterior
             
-            print(f"Haciendo clic en New Query: x={query_x}, y={query_y}")
+            
             pyautogui.click(query_x, query_y)
-            print("Clic realizado en New Query")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en New Query: {str(e)}")
@@ -180,7 +204,7 @@ class AddressAutomation:
     def click_gis_option(self):
         """Hacer clic en la opción GIS"""
         try:
-            print("Haciendo clic en GIS...")
+            
             time.sleep(0.2)
             
             # Obtener posición de la ventana
@@ -191,9 +215,9 @@ class AddressAutomation:
             gis_x = window['x'] + int(size['width'] * 0.1)  # 10% del ancho
             gis_y = window['y'] + 160  # Misma altura que New Query
             
-            print(f"Haciendo clic en GIS: x={gis_x}, y={gis_y}")
+            
             pyautogui.click(gis_x, gis_y)
-            print("Clic realizado en GIS")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en GIS: {str(e)}")
@@ -201,7 +225,7 @@ class AddressAutomation:
     def click_address_option(self):
         """Hacer clic en la opción Address"""
         try:
-            print("Haciendo clic en Address...")
+            
             time.sleep(0.2)
             
             # Obtener posición de la ventana
@@ -212,9 +236,9 @@ class AddressAutomation:
             address_x = window['x'] + int(size['width'] * 0.45)  # Igual que New Query
             address_y = window['y'] + 180  # 40px más abajo que New Query
             
-            print(f"Haciendo clic en Address: x={address_x}, y={address_y}")
+            
             pyautogui.click(address_x, address_y)
-            print("Clic realizado en Address")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Address: {str(e)}")
@@ -222,7 +246,7 @@ class AddressAutomation:
     def click_next_button(self):
         """Hacer clic en el botón Next"""
         try:
-            print("Haciendo clic en Next...")
+            
             time.sleep(0.7)
             
             window = self.driver.get_window_position()
@@ -232,9 +256,9 @@ class AddressAutomation:
             next_x = window['x'] + int(size['width'] * 0.35)  # 75% del ancho
             next_y = window['y'] + 400  # 40px más abajo que Address
             
-            print(f"Haciendo clic en Next: x={next_x}, y={next_y}")
+            
             pyautogui.click(next_x, next_y)
-            print("Clic realizado en Next")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Next: {str(e)}")
@@ -242,7 +266,7 @@ class AddressAutomation:
     def click_actual_count(self):
         """Hacer clic en Actual Count"""
         try:
-            print("Haciendo clic en Actual Count...")
+            print("Rellenando formulario para la busqueda de Dirección...")
             time.sleep(0.2)
             
             window = self.driver.get_window_position()
@@ -252,9 +276,9 @@ class AddressAutomation:
             actual_x = window['x'] + int(size['width'] * 0.1)  # Igual que Address
             actual_y = window['y'] + 180  # Más abajo que el botón Next
             
-            print(f"Haciendo clic en Actual Count: x={actual_x}, y={actual_y}")
+            
             pyautogui.click(actual_x, actual_y)
-            print("Clic realizado en Actual Count")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Actual Count: {str(e)}")
@@ -262,7 +286,7 @@ class AddressAutomation:
     def click_name(self):
         """Hacer clic en el campo Name"""
         try:
-            print("Haciendo clic en Name...")
+            
             time.sleep(0.5)
             
             window = self.driver.get_window_position()
@@ -272,9 +296,9 @@ class AddressAutomation:
             name_x = window['x'] + int(size['width'] * 0.1)  # Igual que Actual Count
             name_y = window['y'] + 280  # 100px más abajo que Actual Count
             
-            print(f"Haciendo clic en Name: x={name_x}, y={name_y}")
+            
             pyautogui.click(name_x, name_y)
-            print("Clic realizado en Name")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Name: {str(e)}")
@@ -282,7 +306,7 @@ class AddressAutomation:
     def click_equals(self):
         """Hacer clic en el campo Equals"""
         try:
-            print("Haciendo clic en Equals...")
+            
             time.sleep(0.2)
             
             window = self.driver.get_window_position()
@@ -292,9 +316,9 @@ class AddressAutomation:
             equals_x = window['x'] + int(size['width'] * 0.2)  # 20% del ancho
             equals_y = window['y'] + 180  # Misma Y que Actual Count
             
-            print(f"Haciendo clic en Equals: x={equals_x}, y={equals_y}")
+            
             pyautogui.click(equals_x, equals_y)
-            print("Clic realizado en Equals")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Equals: {str(e)}")
@@ -302,8 +326,8 @@ class AddressAutomation:
     def click_is_like(self):
         """Hacer clic en Is Like"""
         try:
-            print("Haciendo clic en Is Like...")
-            time.sleep(0.5)
+            
+            time.sleep(0.2)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -312,9 +336,9 @@ class AddressAutomation:
             is_like_x = window['x'] + int(size['width'] * 0.2)  # Igual que Equals
             is_like_y = window['y'] + 220  # 40px más que Equals
             
-            print(f"Haciendo clic en Is Like: x={is_like_x}, y={is_like_y}")
+            
             pyautogui.click(is_like_x, is_like_y)
-            print("Clic realizado en Is Like")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Is Like: {str(e)}")
@@ -322,8 +346,8 @@ class AddressAutomation:
     def click_value(self):
         """Hacer clic en el campo Value y escribir la dirección"""
         try:
-            print("Haciendo clic en Value...")
-            time.sleep(0.5)
+            print("Digitando Dirección a buscar...")
+            time.sleep(0.2)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -334,7 +358,7 @@ class AddressAutomation:
             
             # Hacer clic y escribir la dirección
             pyautogui.click(value_x, value_y)
-            time.sleep(0.5)
+            time.sleep(0.2)
             
             # Asegurar que la dirección termine con *
             address_to_write = self.current_address if self.current_address.endswith('*') else f"{self.current_address}*"
@@ -347,8 +371,8 @@ class AddressAutomation:
     def click_add_to_list(self):
         """Hacer clic en Add to List"""
         try:
-            print("Haciendo clic en Add to List...")
-            time.sleep(0.7)
+            
+            time.sleep(0.5)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -357,9 +381,9 @@ class AddressAutomation:
             add_list_x = window['x'] + int(size['width'] * 0.45)  # Igual que New Query
             add_list_y = window['y'] + 200  # 20px más que Value
             
-            print(f"Haciendo clic en Add to List: x={add_list_x}, y={add_list_y}")
+            
             pyautogui.click(add_list_x, add_list_y)
-            print("Clic realizado en Add to List")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Add to List: {str(e)}")
@@ -367,8 +391,8 @@ class AddressAutomation:
     def click_search(self):
         """Hacer clic en Search"""
         try:
-            print("Haciendo clic en Search...")
-            time.sleep(0.5)
+            print("Buscando Dirección...")
+            time.sleep(0.3)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -377,9 +401,9 @@ class AddressAutomation:
             search_x = window['x'] + int(size['width'] * 0.45)  # Igual que New Query
             search_y = window['y'] + 380  # Parte inferior
             
-            print(f"Haciendo clic en Search: x={search_x}, y={search_y}")
+            
             pyautogui.click(search_x, search_y)
-            print("Clic realizado en Search")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Search: {str(e)}")
@@ -387,8 +411,8 @@ class AddressAutomation:
     def minimize_window(self):
         """Hacer clic en el botón minimizar"""
         try:
-            print("Minimizando ventana...")
-            time.sleep(1)
+            print("Minimizando Formulario...")
+            time.sleep(3)
             
             window = self.driver.get_window_position()
             size = self.driver.get_window_size()
@@ -397,9 +421,9 @@ class AddressAutomation:
             minimize_x = window['x'] + int(size['width'] * 0.48)
             minimize_y = window['y'] + 100
             
-            print(f"Haciendo clic en minimizar: x={minimize_x}, y={minimize_y}")
+            
             pyautogui.click(minimize_x, minimize_y)
-            print("Ventana minimizada")
+            
             
         except Exception as e:
             print(f"Error minimizando ventana: {str(e)}")
@@ -407,7 +431,7 @@ class AddressAutomation:
     def click_go_to(self):
         """Hacer clic en el botón Go To (azul)"""
         try:
-            print("Haciendo clic en Go To...")
+            print("Dirigiendonos a la Dirección...")
             time.sleep(1)
             
             window = self.driver.get_window_position()
@@ -417,9 +441,9 @@ class AddressAutomation:
             goto_x = window['x'] + int(size['width'] * 0.28)  # 50% del ancho
             goto_y = window['y'] + 350  # Altura aproximada del botón azul
             
-            print(f"Haciendo clic en Go To: x={goto_x}, y={goto_y}")
+            
             pyautogui.click(goto_x, goto_y)
-            print("Clic realizado en Go To")
+            
             
         except Exception as e:
             print(f"Error haciendo clic en Go To: {str(e)}")
@@ -438,13 +462,13 @@ class AddressAutomation:
             scale_y = window['y'] + 130  # Altura del campo de escala
             
             # Hacer clic y escribir 88 (se agregará al 1:1 existente)
-            print("Haciendo clic en campo de escala...")
+            
             pyautogui.click(scale_x, scale_y)
             time.sleep(0.5)
             pyautogui.write("88")
             time.sleep(0.5)
             pyautogui.press('enter')  # Presionar Enter después de escribir
-            print("Escala modificada a 1:188")
+            
             
         except Exception as e:
             print(f"Error modificando escala: {str(e)}")
@@ -452,7 +476,7 @@ class AddressAutomation:
     def draw_selection_box(self):
         """Hacer doble clic en el centro donde estaría el círculo verde"""
         try:
-            print("Moviendo mouse al centro del área...")
+            print("Seleccionando dirección")
             time.sleep(1.5)
             
             window = self.driver.get_window_position()
@@ -467,13 +491,13 @@ class AddressAutomation:
             time.sleep(1)  # Esperar que el mouse esté estable
             
             # Realizar los dos clics con intervalo
-            print("Realizando primer clic...")
+            
             pyautogui.click()
             time.sleep(0.7)  # Esperar entre clics
-            print("Realizando segundo clic...")
+            
             pyautogui.click()
             
-            print("Clics realizados en el centro del área")
+            
             
         except Exception as e:
             print(f"Error haciendo clics en el centro: {str(e)}")
@@ -481,7 +505,7 @@ class AddressAutomation:
     def get_association_value(self, save_to_excel=False):
         """Hacer clic en el ícono de Word y Export to Excel"""
         try:
-            print("Haciendo clic en icono de Word...")
+            
             time.sleep(2)
             
             window = self.driver.get_window_position()
@@ -491,26 +515,25 @@ class AddressAutomation:
             word_x = window['x'] + int(size['width'] * 0.49)
             word_y = window['y'] + 350
             
-            print(f"Haciendo clic en icono Word: x={word_x}, y={word_y}")
+            
             pyautogui.click(word_x, word_y)
-            print("Clic realizado en icono Word")
+            
             time.sleep(1)
             
             # Clic en Export to Excel (misma X que Word, 15px más abajo)
             export_x = word_x
             export_y = word_y + 15
             
-            print("Haciendo clic en Export to Excel...")
+            
             pyautogui.click(export_x, export_y)
             time.sleep(0.5)
             
             # Clic en Save File (misma X pero 80px menos)
             save_y = export_y - 80  # Modificado a -80px
-            print("Haciendo clic en Save File...")
+            
             pyautogui.click(export_x, save_y)
             time.sleep(0.5)
             
-            print("Save File seleccionado")
             
         except Exception as e:
             print(f"Error haciendo clic en Word/Export: {str(e)}")
@@ -527,7 +550,7 @@ class AddressAutomation:
         except Exception as e:
             print(f"Error manejando diálogo de descarga: {str(e)}")
 
-    def handle_excel_file(self, timeout=30):
+    def handle_excel_file(self, timeout=10):  # Changed from 30 to 10 seconds
         """Detectar y mover el archivo Excel data(#).xls más reciente"""
         try:
             print("Esperando archivo Excel 'data.xls'...")
@@ -537,7 +560,7 @@ class AddressAutomation:
             # Crear carpeta de resultados si no existe
             os.makedirs(self.results_folder, exist_ok=True)
             
-            print(f"Archivos en carpeta de descargas: {os.listdir(self.download_folder)}")
+
             
             while (datetime.now() - start_time).seconds < timeout:
                 # Buscar archivos data.xls
@@ -627,27 +650,28 @@ class AddressAutomation:
                 workbook = xlrd.open_workbook(data_path)
                 sheet = workbook.sheet_by_name('Address')
                 
-                # Buscar índices de las columnas
+                # Buscar índices de las columnas en hoja Address
                 header_row = sheet.row_values(0)
                 name_col = header_row.index('Name')
                 asociacion_col = header_row.index('Asociacion')
                 
-                # Buscar la fila que contiene la dirección actual
+                # Buscar la dirección actual y obtener su valor de Asociacion
                 asociacion_valor = None
                 for row in range(1, sheet.nrows):
                     name_value = str(sheet.cell_value(row, name_col))
                     if self.current_address.strip('*') in name_value:
                         asociacion_valor = sheet.cell_value(row, asociacion_col)
                         break
-                
-                # Si no se encontró la dirección, marcar como no asociado
+
+                # Determinar valor de asociación
                 if asociacion_valor is None:
                     valor_final = 'No'
                 else:
                     valor_final = 'Si' if str(asociacion_valor).lower() == 'true' else 'No'
-                
-                # Verificar hoja Molecula
+
+                # Verificar hoja Molecula y extraer datos
                 tiene_hoja_molecula = 'Molecula' in workbook.sheet_names()
+                codigo_macro = propietario_valor = estado_nap = 'N/A'
                 
                 if tiene_hoja_molecula:
                     sheet_molecula = workbook.sheet_by_name('Molecula')
@@ -656,22 +680,17 @@ class AddressAutomation:
                     codigo_col = header_molecula.index('Codigo')
                     propietario_col = header_molecula.index('Propietario')
                     
-                    # Buscar datos de Macro Cell
+                    # Buscar fila con Type = 'Macro Cell'
                     for row in range(1, sheet_molecula.nrows):
-                        if sheet_molecula.cell_value(row, type_col) == 'Macro Cell':
+                        if str(sheet_molecula.cell_value(row, type_col)) == 'Macro Cell':
                             codigo_macro = sheet_molecula.cell_value(row, codigo_col)
                             propietario_valor = sheet_molecula.cell_value(row, propietario_col)
                             break
-                    else:
-                        codigo_macro = propietario_valor = 'N/A'
-                else:
-                    codigo_macro = propietario_valor = 'N/A'
-                    valor_final = 'No'
+                    
+                    # Solo preguntar estado NAP si hay molécula
+                    estado_nap = self.get_nap_status()
                 
-                # Obtener estado NAP
-                estado_nap = self.get_nap_status()
-                
-                # Almacenar datos para la dirección actual
+                # Almacenar datos
                 self.address_data[self.current_address] = {
                     'dentro_molecula': 'Si' if tiene_hoja_molecula else 'No',
                     'asociado': valor_final,
@@ -697,6 +716,12 @@ class AddressAutomation:
 
     def process_search_result(self, address):
         """Procesar resultado de búsqueda y manejar reducciones"""
+        # Validar número de parámetros primero
+        if not self.validate_address_parameters(address):
+            print(f"Dirección {address} tiene menos de 4 parámetros - marcando como no encontrada")
+            self.not_found_addresses.append(address)
+            return False
+
         original_address = address
         current_try = address
         
@@ -756,7 +781,7 @@ class AddressAutomation:
             dentro_mol_col = 27 # Columna AA - Dentro molecula Gpon
             asoc_col = 28       # Columna AB - Asociado molecula
             prop_mol_col = 29   # Columna AC - Propietario Molecula
-            nombre_mol_col = 30 # Columna AD - Nombre de la molecula
+            nombre_mol_col = 30 # Columna AD - Nombre de la moleula
             estado_mol_col = 31 # Columna AE - Estado Molecula
             
             red_font = openpyxl.styles.Font(color='FF0000')
@@ -794,29 +819,102 @@ class AddressAutomation:
         except Exception as e:
             print(f"Error actualizando Backlog: {str(e)}")
 
-    def click_clear(self):
-        """Hacer clic en el botón Clear"""
+    def update_backlog_batch(self, batch_addresses):
+        """Actualizar Backlog para un lote de direcciones"""
         try:
-            print("Haciendo clic en Clear...")
-            time.sleep(1)
+            print("\nActualizando Backlog para el lote actual...")
+            backlog_path = 'Backlog_GPON_FILTRADO.xlsx'
             
-            window = self.driver.get_window_position()
-            size = self.driver.get_window_size()
+            if not os.path.exists(backlog_path):
+                print(f"\n❌ Error: No se encuentra el archivo '{backlog_path}'")
+                print("Por favor, verifique que el archivo esté en la carpeta correcta.")
+                print(f"Carpeta actual: {os.getcwd()}")
+                return
             
-            # Coordenadas para el botón Clear
-            clear_x = window['x'] + int(size['width'] * 0.45)
-            clear_y = window['y'] + 300  # Más abajo que Add to List
+            workbook = openpyxl.load_workbook(backlog_path)
+            sheet = workbook['GPON']  # Cambiar a hoja GPON
             
-            print(f"Haciendo clic en Clear: x={clear_x}, y={clear_y}")
-            pyautogui.click(clear_x, clear_y)
-            print("Clic realizado en Clear")
-            time.sleep(1)  # Esperar que se complete el clear
+            # Definir columnas con nombres correctos
+            param_col = None  # Se buscará en el archivo
+            dentro_mol_col = None
+            asoc_col = None
+            prop_mol_col = None
+            nombre_mol_col = None
+            estado_mol_col = None
+            
+            # Encontrar índices de columnas
+            for idx, cell in enumerate(sheet[1], 1):
+                col_name = str(cell.value).strip() if cell.value else ''
+                if col_name == 'Prametrización':
+                    param_col = idx
+                elif col_name == 'Dentro molecula Gpon':
+                    dentro_mol_col = idx
+                elif col_name == 'Asociado molecula':
+                    asoc_col = idx
+                elif col_name == 'Propietario Molecula':
+                    prop_mol_col = idx
+                elif col_name == 'Nombre de la moleula':
+                    nombre_mol_col = idx
+                elif col_name == 'Estado Molecula':
+                    estado_mol_col = idx
+            
+            red_font = openpyxl.styles.Font(color='FF0000')
+            
+            # Actualizar datos
+            for direccion in batch_addresses:
+                if direccion not in self.address_indices:
+                    continue
+                    
+                indices = self.address_indices[direccion]
+                data = None
+                
+                if direccion in self.address_data:
+                    data = self.address_data[direccion]
+                elif direccion in self.not_found_addresses:
+                    # Marcar como no encontrada
+                    for idx in indices:
+                        row = idx + 2
+                        cell = sheet.cell(row=row, column=param_col)
+                        cell.font = red_font
+                        cell.value = f"{direccion} no aparece direccion"
+                        sheet.cell(row=row, column=dentro_mol_col, value='N/A')
+                        sheet.cell(row=row, column=asoc_col, value='N/A')
+                        sheet.cell(row=row, column=prop_mol_col, value='N/A')
+                        sheet.cell(row=row, column=nombre_mol_col, value='N/A')
+                        sheet.cell(row=row, column=estado_mol_col, value='N/A')
+                    continue
+                
+                if data:
+                    for idx in indices:
+                        row = idx + 2
+                        sheet.cell(row=row, column=dentro_mol_col, value=data['dentro_molecula'])
+                        sheet.cell(row=row, column=asoc_col, value=data['asociado'])
+                        sheet.cell(row=row, column=prop_mol_col, value=data['propietario'])
+                        sheet.cell(row=row, column=nombre_mol_col, value=data['codigo_macro'])
+                        sheet.cell(row=row, column=estado_mol_col, value=data['estado_nap'])
+            
+            workbook.save(backlog_path)
+            print("✅ Excel actualizado exitosamente")
             
         except Exception as e:
-            print(f"Error haciendo clic en Clear: {str(e)}")
+            print(f"Error actualizando Backlog por lotes: {str(e)}")
+
+    def validate_backlog_file(self, filename: str) -> bool:
+        """Validar existencia del archivo Backlog"""
+        if not os.path.exists(filename):
+            print(f"\n❌ Error: No se encuentra el archivo '{filename}'")
+            print("Por favor, verifique que el archivo esté en la carpeta correcta.")
+            print(f"Carpeta actual: {os.getcwd()}")
+            return False
+        return True
 
     def setup_driver(self):
         try:
+            # Validar existencia del archivo Backlog antes de empezar
+            backlog_filename = "Backlog_GPON_FILTRADO.xlsx"
+            if not self.validate_backlog_file(backlog_filename):
+                return
+
             print("Iniciando Firefox...")
             profile = webdriver.FirefoxProfile()
             profile.set_preference("browser.startup.page", 0)
@@ -847,104 +945,91 @@ class AddressAutomation:
             # Hacer clic en Next
             self.click_next_button()
             
-            # Procesar cada dirección
-            for idx, address in enumerate(self.addresses):
+            # Calcular tamaño de lotes para actualización del Excel
+            total_addresses = len(self.addresses)
+            batch_size = max(1, total_addresses // 5)  # Dividir en 5 partes
+            print(f"\nℹ️ Total de direcciones a procesar: {total_addresses}")
+            print(f"ℹ️ Se actualizará el Excel cada {batch_size} direcciones procesadas")
+            
+            current_batch = []
+            
+            for idx, address in enumerate(self.addresses, 1):
                 self.current_address = address
-                print(f"\nProcesando dirección {idx + 1}/{len(self.addresses)}: {address}")
+                print(f"\nProcesando dirección {idx}/{len(self.addresses)}: {address}")
                 
-                # Secuencia de clics en orden correcto
-                self.click_actual_count()
-                time.sleep(1)
-                self.click_name()
-                time.sleep(1)
-                self.click_equals()
-                time.sleep(1)
-                self.click_is_like()
-                time.sleep(1)
-                self.click_value()
-                time.sleep(1)
-                self.click_add_to_list()
-                self.click_search()
-                self.minimize_window()
-                self.click_go_to()
-                self.set_scale()
-                self.draw_selection_box()
-                
-                # Descargar y procesar Excel
-                self.get_association_value(save_to_excel=True)
-                self.handle_download_dialog()
-                excel_path = self.handle_excel_file()
-                if excel_path:
-                    self.process_excel_files(excel_path)
+                # Validar número de parámetros
+                if not self.validate_address_parameters(address):
+                    print(f"Dirección {address} tiene menos de 4 parámetros - marcando como no encontrada")
+                    self.not_found_addresses.append(address)
+                    self.address_data[address] = {
+                        'dentro_molecula': 'N/A',
+                        'asociado': 'N/A',
+                        'propietario': 'N/A',
+                        'codigo_macro': 'N/A',
+                        'estado_nap': 'N/A'
+                    }
+                    current_batch.append(address)
                 else:
-                    print(f"No se encontró información para: {address}")
+                    # Procesar dirección normalmente
+                    self.click_actual_count()
+                    time.sleep(1)
+                    self.click_name()
+                    time.sleep(1)
+                    self.click_equals()
+                    time.sleep(1)
+                    self.click_is_like()
+                    time.sleep(1)
+                    self.click_value()
+                    time.sleep(1)
+                    self.click_add_to_list()
+                    self.click_search()
+                    self.minimize_window()
+                    self.click_go_to()
+                    self.set_scale()
+                    self.draw_selection_box()
                     
+                    # Descargar y procesar Excel
+                    self.get_association_value(save_to_excel=True)
+                    self.handle_download_dialog()
+                    excel_path = self.handle_excel_file()
+                    if excel_path:
+                        self.process_excel_files(excel_path)
+                        current_batch.append(address)
+                    else:
+                        print(f"No se encontró información para: {address}")
+                        self.address_data[address] = {
+                            'dentro_molecula': 'N/A',
+                            'asociado': 'N/A',
+                            'propietario': 'N/A',
+                            'codigo_macro': 'N/A',
+                            'estado_nap': 'N/A'
+                        }
+                        self.not_found_addresses.append(address)
+                        current_batch.append(address)
+                
+                # Actualizar Excel cada batch_size direcciones o al final
+                if len(current_batch) >= batch_size or idx == len(self.addresses):
+                    print(f"\n📝 Actualizando Excel (procesadas {len(current_batch)} direcciones)...")
+                    try:
+                        self.update_backlog_batch(current_batch)
+                        print("✅ Excel actualizado exitosamente")
+                        current_batch = []  # Limpiar batch actual
+                    except FileNotFoundError:
+                        print(f"\n❌ Error: No se encuentra el archivo '{backlog_filename}'")
+                        print("Por favor, verifique que el archivo esté en la carpeta correcta.")
+                        print(f"Carpeta actual: {os.getcwd()}")
+                        if input("\n¿Desea continuar con la automatización? (s/n): ").lower() != 's':
+                            break
+                    except Exception as e:
+                        print(f"\n❌ Error actualizando Excel: {str(e)}")
+                        if input("\n¿Desea continuar con la automatización? (s/n): ").lower() != 's':
+                            break
+                
                 # Restaurar para siguiente dirección si no es la última
-                if idx < len(self.addresses) - 1:
+                if idx < len(self.addresses):
                     self.click_default_button()
                     time.sleep(1)
                     self.click_clear()
-            
-            # Primera actualización del Backlog
-            self.update_backlog()
-            
-            # Restaurar interfaz antes de procesar direcciones no encontradas
-            self.click_default_button()
-            time.sleep(1)
-            self.click_clear()
-            
-            # Procesar direcciones no encontradas
-            if self.not_found_addresses:
-                print("\nProcesando direcciones no encontradas con menos parámetros...")
-                addresses_to_retry = self.not_found_addresses.copy()
-                self.not_found_addresses = []  # Limpiar para nuevo intento
-                
-                for address in addresses_to_retry:
-                    current_address = address
-                    while True:
-                        parts = current_address.split()
-                        if len(parts) <= 3:
-                            # Si llegamos a 3 parámetros sin éxito, marcar como no encontrada
-                            self.not_found_addresses.append(address)
-                            break
-                            
-                        # Quitar último parámetro
-                        current_address = ' '.join(parts[:-1])
-                        print(f"\nReintentando con dirección reducida: {current_address}")
-                        
-                        # Intentar búsqueda con dirección reducida...
-                        self.current_address = current_address
-                        self.click_actual_count()
-                        time.sleep(1)
-                        self.click_name()
-                        time.sleep(1)
-                        self.click_equals()
-                        time.sleep(1)
-                        self.click_is_like()
-                        time.sleep(1)
-                        self.click_value()
-                        time.sleep(1)
-                        self.click_add_to_list()
-                        self.click_search()
-                        self.minimize_window()
-                        self.click_go_to()
-                        self.set_scale()
-                        self.draw_selection_box()
-                        
-                        # Descargar y procesar Excel
-                        self.get_association_value(save_to_excel=True)
-                        self.handle_download_dialog()
-                        excel_path = self.handle_excel_file()
-                        
-                        if excel_path:
-                            # Si encontramos con parámetros reducidos, guardar con dirección original
-                            self.process_excel_files(excel_path)
-                            self.address_data[address] = self.address_data[current_address]
-                            del self.address_data[current_address]  # Limpiar entrada temporal
-                            break
-            
-            # Actualización final del Backlog
-            self.update_backlog()
             
             input("Presiona Enter para cerrar...")
             
@@ -955,8 +1040,42 @@ class AddressAutomation:
             if hasattr(self, 'driver'):
                 self.driver.quit()
 
+    def validate_address_parameters(self, address: str) -> bool:
+        """Validar que la dirección tenga al menos 4 parámetros"""
+        if not address:
+            return False
+        # Dividir por espacios y filtrar elementos vacíos
+        params = [p for p in address.split() if p.strip()]
+        return len(params) >= 4
+
+    def click_clear(self):
+        """Hacer clic en el botón Clear"""
+        try:
+            print("Haciendo clic en Clear...")
+            time.sleep(0.5)
+            
+            window = self.driver.get_window_position()
+            size = self.driver.get_window_size()
+            
+            # Coordenadas para el botón Clear
+            clear_x = window['x'] + int(size['width'] * 0.45)
+            clear_y = window['y'] + 300  # Más abajo que Add to List
+            
+            print(f"Haciendo clic en Clear: x={clear_x}, y={clear_y}")
+            pyautogui.click(clear_x, clear_y)
+            print("Clic realizado en Clear")
+            time.sleep(0.5)  # Esperar que se complete el clear
+            
+        except Exception as e:
+            print(f"Error haciendo clic en Clear: {str(e)}")
+
 def run_automation():
-    automation = AddressAutomation()
+    try:
+        automation = AddressAutomation()
+        return automation
+    except Exception as e:
+        print(f"❌ Error en la automatización: {str(e)}")
+        return None
 
 if __name__ == "__main__":
     run_automation()
