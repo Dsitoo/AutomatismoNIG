@@ -172,7 +172,7 @@ class ExcelAddressProcessor:
                     self.logger.error("Letra de columna inválida.")
                     return False
         
-        # Encontrar índice de la columna de direcciones
+            # Encontrar índice de la columna de direcciones
             address_col_idx = df.columns.get_loc(address_col_name)
             
             address_letter = self.get_column_letter(address_col_idx)
@@ -188,9 +188,9 @@ class ExcelAddressProcessor:
             
             # Procesar solo filas visibles
             print("🔄 Procesando direcciones solo en filas visibles...")
-            self.parser.direcciones_procesadas = []
             modificadas = 0
             vaciadas = 0
+            errores = 0
             
             for row_idx in range(2, worksheet.max_row + 1):
                 # Verificar si la fila está oculta
@@ -201,23 +201,39 @@ class ExcelAddressProcessor:
                 direccion_cell = worksheet.cell(row=row_idx, column=address_col_idx + 1)
                 direccion_original = str(direccion_cell.value or "").strip()
                 
-                if not direccion_original:
+                if not direccion_original or direccion_original.lower() in ['none', 'nan']:
                     continue
                 
-                # Procesar la dirección
-                parametrizada = self.parser.parse_address(direccion_original)
-                
-                # Obtener la celda de parametrización
-                param_cell = worksheet.cell(row=row_idx, column=param_col_idx + 1)
-                
-                if parametrizada == "NO APARECE DIRECCION":
-                    if param_cell.value is not None:
-                        param_cell.value = None
-                        vaciadas += 1
-                else:
-                    param_cell.value = parametrizada
-                    modificadas += 1
-        
+                try:
+                    # CORECCIÓN PRINCIPAL: Usar parametrizar_direccion() en lugar de parse_address()
+                    result = self.parser.parametrizar_direccion(direccion_original)
+                    
+                    # Obtener la celda de parametrización
+                    param_cell = worksheet.cell(row=row_idx, column=param_col_idx + 1)
+                    
+                    if result['valida'] and result['direccion_parametrizada'] != "DIRECCION NO VALIDA":
+                        param_cell.value = result['direccion_parametrizada']
+                        modificadas += 1
+                        
+                        # Debug: mostrar algunas conversiones
+                        if modificadas <= 5:
+                            print(f"   ✅ Fila {row_idx}: '{direccion_original}' -> '{result['direccion_parametrizada']}'")
+                    else:
+                        # Si la dirección no es válida, limpiar la celda
+                        if param_cell.value is not None:
+                            param_cell.value = None
+                            vaciadas += 1
+                        
+                        # Debug: mostrar direcciones problemáticas
+                        if errores < 3:
+                            print(f"   ❌ Fila {row_idx}: '{direccion_original}' -> No válida ({'; '.join(result['errores'])})")
+                        errores += 1
+                        
+                except Exception as e:
+                    errores += 1
+                    if errores <= 3:
+                        print(f"   ⚠️  Error fila {row_idx}: {str(e)}")
+            
             # Guardar el archivo SIN cambiar formato
             print("💾 Guardando cambios...")
             workbook.save(file_path)
@@ -230,6 +246,7 @@ class ExcelAddressProcessor:
             print(f"📁 Archivo: {file_path}")
             print(f"✏️  Celdas modificadas: {modificadas}")
             print(f"🧹 Celdas vaciadas: {vaciadas}")
+            print(f"❌ Errores encontrados: {errores}")
             print(f"🎨 Formato original preservado: ✅")
             print(f"{'='*60}")
             
@@ -237,6 +254,8 @@ class ExcelAddressProcessor:
             
         except Exception as e:
             self.logger.error(f"Error procesando archivo: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def process_excel_file(self, file_path: str = "Backlog250525-filtradocobertura.xlsx", 
