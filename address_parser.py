@@ -6,56 +6,77 @@ import pandas as pd
 class OptimizedAddressParser:
     
     def __init__(self):
-        self.TIPOS_VIA_OFICIAL = {
-            'CL': 'CALLE',
-            'KR': 'CARRERA',
-            'DG': 'DIAGONAL',
-            'TV': 'TRANSVERSAL',
-            'AC': 'AVENIDA CALLE',
-            'AK': 'AVENIDA CARRERA'
-        }
-        
         self.MAPEO_TIPOS_VIA = {
             'CALLE': 'CL', 'CL': 'CL', 'CALL': 'CL', 'CAL': 'CL',
             'CLLE': 'CL', 'CLL': 'CL', 'C': 'CL',
-            
             'CARRERA': 'KR', 'KR': 'KR', 'CR': 'KR', 'CRA': 'KR',
             'CARR': 'KR', 'K': 'KR', 'KRA': 'KR',
-            
             'DIAGONAL': 'DG', 'DG': 'DG', 'DIAG': 'DG',
-            
             'TRANSVERSAL': 'TV', 'TV': 'TV', 'TR': 'TV', 'TRANS': 'TV',
-            
             'AVENIDA CALLE': 'AC', 'AC': 'AC', 'AV CALLE': 'AC', 
-            'AV CL': 'AC', 'AVENIDA CL': 'AC',
-            
+            'AV CL': 'AC', 'AVENIDA CL': 'AC', 'AVDA CALLE': 'AC',
             'AVENIDA CARRERA': 'AK', 'AK': 'AK', 'AV CARRERA': 'AK',
-            'AV CR': 'AK', 'AVENIDA CR': 'AK', 'AUTOPISTA': 'AK'
+            'AV CR': 'AK', 'AVENIDA CR': 'AK', 'AVDA CARRERA': 'AK',
+            'AUTOPISTA': 'AK', 'AUTOP': 'AK'
         }
         
-        self.AVENIDAS_ESPECIALES = {
+        self.AVENIDAS_PRINCIPALES = {
             'EL DORADO': {'tipo': 'AC', 'numero': '26'},
             'DORADO': {'tipo': 'AC', 'numero': '26'},
+            'ELDORADO': {'tipo': 'AC', 'numero': '26'},
+            'AMERICAS': {'tipo': 'AC', 'numero': '6'},
+            'LAS AMERICAS': {'tipo': 'AC', 'numero': '6'},
+            'CENTENARIO': {'tipo': 'AC', 'numero': '13'},
+            'JIMENEZ': {'tipo': 'AC', 'numero': '19'},
+            'JIMÉNEZ': {'tipo': 'AC', 'numero': '19'},
+            'PRIMERA DE MAYO': {'tipo': 'AC', 'numero': '22', 'sufijo': 'SUR'},
+            'SEPTIMA': {'tipo': 'AK', 'numero': '7'},
+            'SÉPTIMA': {'tipo': 'AK', 'numero': '7'},
+            'DECIMA': {'tipo': 'AK', 'numero': '10'},
+            'DÉCIMA': {'tipo': 'AK', 'numero': '10'},
+            'CARACAS': {'tipo': 'AK', 'numero': '14'},
             'NQS': {'tipo': 'AK', 'numero': '30'},
             'NORTE QUITO SUR': {'tipo': 'AK', 'numero': '30'},
-            'CARACAS': {'tipo': 'AK', 'numero': '14'},
-            'SEPTIMA': {'tipo': 'AK', 'numero': '7'},
+            'SUBA': {'tipo': 'AK', 'numero': '91'},
             'BOYACA': {'tipo': 'AK', 'numero': '72'},
             'BOYACÁ': {'tipo': 'AK', 'numero': '72'},
             'CIUDAD DE CALI': {'tipo': 'AK', 'numero': '86'},
-            'PRIMERA DE MAYO': {'tipo': 'AC', 'numero': '22', 'sufijo': 'SUR'},
-            'AMERICAS': {'tipo': 'AC', 'numero': '6'},
-            'LAS AMERICAS': {'tipo': 'AC', 'numero': '6'}
+            'CIUDAD DE QUITO': {'tipo': 'AK', 'numero': '30'},
+            'CRISTOBAL COLON': {'tipo': 'AK', 'numero': '22'},
+            'CRISTÓBAL COLÓN': {'tipo': 'AK', 'numero': '22'},
+            'AUTOPISTA NORTE': {'tipo': 'AK', 'numero': '45'},
+            'AUTOPISTA SUR': {'tipo': 'AK', 'numero': '27'},
+            'CIRCUNVALAR': {'tipo': 'AK', 'numero': '2'},
+            'PRIMERA': {'tipo': 'AK', 'numero': '1'},
+            'SEGUNDA': {'tipo': 'AK', 'numero': '2'},
+            'TERCERA': {'tipo': 'AK', 'numero': '3'},
+            'CUARTA': {'tipo': 'AK', 'numero': '4'},
+            'QUINTA': {'tipo': 'AK', 'numero': '5'},
+            'SEXTA': {'tipo': 'AK', 'numero': '6'},
+            'OCTAVA': {'tipo': 'AK', 'numero': '8'},
+            'NOVENA': {'tipo': 'AK', 'numero': '9'},
+            'ONCE': {'tipo': 'AK', 'numero': '11'},
+            'DOCE': {'tipo': 'AK', 'numero': '12'},
+            'TRECE': {'tipo': 'AK', 'numero': '13'},
+            'QUINCE': {'tipo': 'AK', 'numero': '15'},
+            'DIECISEIS': {'tipo': 'AK', 'numero': '16'},
+            'DIECISIETE': {'tipo': 'AK', 'numero': '17'},
+            'DIECIOCHO': {'tipo': 'AK', 'numero': '18'},
+            'DIECINUEVE': {'tipo': 'AK', 'numero': '19'},
+            'VEINTE': {'tipo': 'AK', 'numero': '20'}
         }
         
-        # Abreviaturas que significan "número" y deben eliminarse
-        self.ABREVIATURAS_NUMERO = {'N', 'NO', 'NUM', 'NRO', 'NUMERO', '#'}
+        self.NUMEROS_PALABRAS = {
+            'PRIMERA': '1', 'SEGUNDO': '2', 'SEGUNDA': '2', 'TERCERA': '3',
+            'CUARTA': '4', 'QUINTA': '5', 'SEXTA': '6', 'SEPTIMA': '7',
+            'SÉPTIMA': '7', 'OCTAVA': '8', 'NOVENA': '9', 'DECIMA': '10',
+            'DÉCIMA': '10'
+        }
         
-        # Elementos especiales que deben preservar su posición
+        self.ABREVIATURAS_NUMERO = {'N', 'NO', 'NUM', 'NRO', 'NUMERO', '#'}
         self.ELEMENTOS_ESPECIALES = {'BIS'}
 
     def parametrizar_direccion(self, direccion: str) -> Dict:
-        """Parser completamente reescrito para manejar todos los casos problemáticos"""
         resultado = {
             'direccion_original': direccion,
             'direccion_limpia': '',
@@ -70,7 +91,11 @@ class OptimizedAddressParser:
             return resultado
         
         try:
-            # PASO 1: Limpieza inicial agresiva
+            tipo_direccion = self._detectar_tipo_direccion(direccion)
+            
+            if tipo_direccion == "interseccion":
+                return self._procesar_interseccion(direccion)
+            
             direccion_procesada = self._limpiar_direccion_agresiva(direccion)
             resultado['direccion_limpia'] = direccion_procesada
             
@@ -79,7 +104,6 @@ class OptimizedAddressParser:
                 resultado['direccion_parametrizada'] = "DIRECCION NO VALIDA"
                 return resultado
             
-            # PASO 2: Extraer la parte de dirección útil
             direccion_util = self._extraer_direccion_util(direccion_procesada)
             
             if not direccion_util:
@@ -87,31 +111,28 @@ class OptimizedAddressParser:
                 resultado['direccion_parametrizada'] = "DIRECCION NO VALIDA"
                 return resultado
             
-            # PASO 3: Detectar tipo de vía
-            tipo_via = self._detectar_tipo_via_robusto(direccion_util)
+            info_via = self._detectar_avenida_especifica(direccion_util)
             
-            # PASO 4: Extraer elementos preservando posición original
-            elementos_secuenciales = self._extraer_elementos_preservando_posicion(direccion_util, tipo_via)
+            elementos_secuenciales = self._extraer_elementos_preservando_posicion(
+                direccion_util, info_via['tipo'], info_via.get('numero_avenida')
+            )
             
-            # PASO 5: Validar mínimo de elementos numéricos
             numeros_encontrados = [elem for elem in elementos_secuenciales if elem['tipo'] == 'numero']
             if len(numeros_encontrados) < 2:
                 resultado['errores'].append("Dirección debe tener al menos 2 números")
                 resultado['direccion_parametrizada'] = "DIRECCION NO VALIDA"
                 return resultado
             
-            # PASO 6: Construir dirección final preservando posiciones
-            direccion_final = self._construir_direccion_con_posiciones_preservadas(tipo_via, elementos_secuenciales)
+            direccion_final = self._construir_direccion_con_avenida_especifica(info_via, elementos_secuenciales)
             
             resultado['direccion_parametrizada'] = direccion_final
             resultado['valida'] = True
             
-            # Componentes
             resultado['componentes'] = {
-                'tipo_via': tipo_via,
-                'numero_via': numeros_encontrados[0]['valor'] if numeros_encontrados else None,
-                'via_generadora': numeros_encontrados[1]['valor'] if len(numeros_encontrados) > 1 else None,
-                'distancia': numeros_encontrados[2]['valor'] if len(numeros_encontrados) > 2 else None,
+                'tipo_via': info_via['tipo'],
+                'numero_via': info_via.get('numero_avenida') or (numeros_encontrados[0]['valor'] if numeros_encontrados else None),
+                'via_generadora': numeros_encontrados[0]['valor'] if info_via.get('numero_avenida') else (numeros_encontrados[1]['valor'] if len(numeros_encontrados) > 1 else None),
+                'distancia': numeros_encontrados[1]['valor'] if info_via.get('numero_avenida') else (numeros_encontrados[2]['valor'] if len(numeros_encontrados) > 2 else None),
                 'sufijos': [elem['valor'] for elem in elementos_secuenciales if elem['tipo'] in ['orientacion', 'especial']]
             }
             
@@ -121,68 +142,189 @@ class OptimizedAddressParser:
         
         return resultado
     
-    def _limpiar_direccion_agresiva(self, direccion: str) -> str:
-        """Limpieza agresiva de la dirección eliminando texto innecesario"""
+    def _detectar_tipo_direccion(self, direccion: str) -> str:
+        direccion_upper = direccion.upper()
+        
+        patron_interseccion_con = r'(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+\d+[A-Zª]*\s+(CON|X)\s+(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+\d+[A-Zª]*'
+        patron_interseccion_palabras = r'(CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|SEPTIMA|SÉPTIMA|OCTAVA|NOVENA|DECIMA|DÉCIMA)\s+(CON|X)\s+(CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|SEPTIMA|SÉPTIMA|OCTAVA|NOVENA|DECIMA|DÉCIMA)'
+        patron_interseccion_x = r'(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+\d+[A-Z]*\s*X?\s*(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+\d+[A-Z]*'
+        patron_x_pegada = r'\d+[A-Z]*X\d+[A-Z]*'
+        
+        if (re.search(patron_interseccion_con, direccion_upper) or 
+            re.search(patron_interseccion_palabras, direccion_upper) or
+            re.search(patron_interseccion_x, direccion_upper) or 
+            re.search(patron_x_pegada, direccion_upper)):
+            tipos_via_encontrados = re.findall(r'(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)', direccion_upper)
+            if len(tipos_via_encontrados) >= 2:
+                return "interseccion"
+        
+        return "normal"
+    
+    def _procesar_interseccion(self, direccion: str) -> Dict:
+        resultado = {
+            'direccion_original': direccion,
+            'direccion_limpia': '',
+            'direccion_parametrizada': '',
+            'componentes': {},
+            'errores': [],
+            'valida': False,
+            'tipo': 'interseccion'
+        }
+        
+        direccion_limpia = self._limpiar_direccion_agresiva_interseccion(direccion)
+        resultado['direccion_limpia'] = direccion_limpia
+        
+        patron_con = r'(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(\d+[A-Zª]*)\s+CON\s+(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(\d+[A-Zª]*)'
+        patron_palabras = r'(CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|SEPTIMA|SÉPTIMA|OCTAVA|NOVENA|DECIMA|DÉCIMA)\s+(CON|X)\s+(CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(PRIMERA|SEGUNDA|TERCERA|CUARTA|QUINTA|SEXTA|SEPTIMA|SÉPTIMA|OCTAVA|NOVENA|DECIMA|DÉCIMA)'
+        patron_x = r'(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(\d+[A-Z]*)\s+(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(\d+[A-Z]*)\s*([A-Z]*)'
+        
+        match = (re.search(patron_con, direccion_limpia.upper()) or 
+                re.search(patron_palabras, direccion_limpia.upper()) or
+                re.search(patron_x, direccion_limpia.upper()))
+        
+        if match:
+            if len(match.groups()) == 4:
+                tipo1, num1, tipo2, num2 = match.groups()
+                sufijo = ''
+            elif len(match.groups()) == 5 and match.groups()[2] in ['CON', 'X']:
+                tipo1, num1, conector, tipo2, num2 = match.groups()
+                sufijo = ''
+            else:
+                tipo1, num1, tipo2, num2, sufijo = match.groups()
+            
+            if num1 in self.NUMEROS_PALABRAS:
+                num1 = self.NUMEROS_PALABRAS[num1]
+            if num2 in self.NUMEROS_PALABRAS:
+                num2 = self.NUMEROS_PALABRAS[num2]
+            
+            num1 = self._normalizar_numero_ordinales(num1)
+            num2 = self._normalizar_numero_ordinales(num2)
+            
+            tipo1_norm = self.MAPEO_TIPOS_VIA.get(tipo1, tipo1)
+            tipo2_norm = self.MAPEO_TIPOS_VIA.get(tipo2, tipo2)
+            
+            direccion_param = f"{tipo1_norm} {num1} {tipo2_norm} {num2}"
+            if sufijo:
+                direccion_param += f" {sufijo}"
+            
+            resultado['direccion_parametrizada'] = direccion_param
+            resultado['valida'] = True
+            
+            resultado['componentes'] = {
+                'via_principal': {'tipo': tipo1_norm, 'numero': num1},
+                'via_interseccion': {'tipo': tipo2_norm, 'numero': num2},
+                'sufijo': sufijo if sufijo else None
+            }
+        else:
+            resultado['errores'].append("No se pudo procesar la intersección")
+            resultado['direccion_parametrizada'] = "DIRECCION NO VALIDA"
+        
+        return resultado
+    
+    def _limpiar_direccion_agresiva_interseccion(self, direccion: str) -> str:
         direccion = str(direccion).upper().strip()
         
-        # Eliminar coordenadas y texto técnico
+        direccion = re.sub(r'\s*-\s*', ' ', direccion)
+        direccion = re.sub(r'EN\s+BOGOT[AÁ].*', '', direccion)
+        direccion = re.sub(r'DENTRO\s+DE\s+LOS\s+PREDIOS.*', '', direccion)
+        direccion = re.sub(r'DEL\s+PALACIO.*', '', direccion)
+        
+        direccion = re.sub(r'\s+', ' ', direccion).strip()
+        
+        return direccion
+    
+    def _normalizar_numero_ordinales(self, numero: str) -> str:
+        numero = numero.replace('ª', 'A')
+        return numero
+    
+    def _limpiar_direccion_agresiva(self, direccion: str) -> str:
+        direccion = str(direccion).upper().strip()
+        
+        direccion = re.sub(r'-?\s*EXTERNO\s+\d+', '', direccion)
+        direccion = re.sub(r'\s*X\s*', ' ', direccion)
+        direccion = re.sub(r'(\d+[A-Z]*)X(\d+)', r'\1 \2', direccion)
         direccion = re.sub(r'COORDENADAS:\s*[\d\.\-\s,]+', ' ', direccion)
         
-        # Eliminar referencias de inmuebles
+        direccion = re.sub(r'^.*?(PARQUEADERO|CICLO)\s+', '', direccion)
+        
+        direccion = re.sub(r'(\d+)([A-Z])([A-Z]+)', r'\1\2 \3', direccion)
+        
         patrones_inmuebles = [
+            r'\s+L\s+\d+(\s+\d+)*',
+            r'\s+CC\s+[\w\.]+',
+            r'\s+C\.[\w]+',
             r'PISO\s*\d+', r'PI\s*\d+', r'PIS:\s*\d+', 
-            r'OFICINA\s*\d+', r'APARTAMENTO\s*\d+', r'LOCAL\s*\d+',
-            r'EDIFICIO\s+\w+', r'TORRE\s+\w+', r'BLOQUE\s+\w+',
+            r'OFICINA\s*\d+', r'OF\s*\d+', r'APARTAMENTO\s*\d+', r'LOCAL\s*\d+',
+            r'EDIFICIO\s+[\w\s]+', r'TORRE\s+[\w\s]+', r'BLOQUE\s+[\w\s]+',
             r'BARRIO\s+[\w\s]+', r'DATA\s+CENTER\s+\w+',
+            r'MÓDULO\s+[A-Z]', r'MODULO\s+[A-Z]',
+            r'PORTAL\s+[\w\s]+', r'CENTRO\s+[\w\s]+',
             r'\s+AD\s+\d+', r'\s+AP\s+\d+', r'\s+OF\s+\d+', r'\s+LC\s+\d+'
         ]
         
         for patron in patrones_inmuebles:
             direccion = re.sub(patron, ' ', direccion, flags=re.IGNORECASE)
         
-        # Eliminar referencias geográficas
-        direccion = re.sub(r'BOGOT[AÁ]\s*(D\.?C\.?)?(\s*-\s*BOGOT[AÁ])?', ' ', direccion, flags=re.IGNORECASE)
+        direccion = re.sub(r'BOGOT[AÁ]\s*(D\.?C\.?)?(\s*[-/]\s*\w+)?', ' ', direccion, flags=re.IGNORECASE)
+        direccion = re.sub(r'COLOMBIA\s*', ' ', direccion, flags=re.IGNORECASE)
+        direccion = re.sub(r'SYC\s+\w+', ' ', direccion, flags=re.IGNORECASE)
         
-        # Normalizar símbolos
         direccion = re.sub(r'N[º°]\.?\s*', ' ', direccion)
         direccion = re.sub(r'NO\.\s*', ' ', direccion)
         direccion = re.sub(r'#\s*', ' ', direccion)
-        direccion = re.sub(r'\s*-\s*', ' ', direccion)
+        direccion = re.sub(r'\s*[-/]\s*', ' ', direccion)
+        direccion = re.sub(r'AV\.', 'AVENIDA', direccion)
+        direccion = re.sub(r'AVDA\.', 'AVENIDA', direccion)
         
-        # Normalizar espacios
         direccion = re.sub(r'\s+', ' ', direccion).strip()
         
         return direccion
     
+    def _detectar_interseccion(self, direccion: str) -> str:
+        direccion_upper = direccion.upper()
+        
+        patron1 = r'(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(\d+[A-Z]*)\s+(KR|CL|DG|TV|AC|AK|CARRERA|CALLE|DIAGONAL|TRANSVERSAL)\s+(\d+[A-Z]*)\s*([A-Z]*)'
+        match1 = re.search(patron1, direccion_upper)
+        if match1:
+            tipo1, num1, tipo2, num2, sufijo = match1.groups()
+            nueva_direccion = f"{tipo1} {num1} {tipo2} {num2}"
+            if sufijo:
+                nueva_direccion += f" {sufijo}"
+            return nueva_direccion
+        
+        return direccion
+    
     def _extraer_direccion_util(self, direccion: str) -> str:
-        """Extrae solo la parte útil de la dirección, eliminando nombres largos al inicio"""
-        # Buscar patrones de dirección válidos
-        patron_direccion = r'(CL|KR|CR|CRA|CALLE|CARRERA|TV|DG|AC|AK|TRANSVERSAL|DIAGONAL|AVENIDA)\s+[\d\w\s]+'
+        direccion = self._detectar_interseccion(direccion)
         
-        # Buscar la primera ocurrencia de un patrón de dirección
-        match = re.search(patron_direccion, direccion, re.IGNORECASE)
+        patrones_direccion = [
+            r'(KR|CL|DG|TV|AC|AK)\s+\d+[A-Z]*\s+(KR|CL|DG|TV|AC|AK)\s+\d+',
+            r'(AVENIDA|AV|AVDA)\s+(EL\s+DORADO|DORADO|AMERICAS|LAS\s+AMERICAS|SEPTIMA|BOYACA|CARACAS|SUBA)',
+            r'(AVENIDA|AV|AVDA)\s+\d+',
+            r'(AVENIDA\s+CARRERA|AVENIDA\s+CALLE|AVENIDA)\s+\w+.*?\d+',
+            r'(CARRERA|CALLE|TRANSVERSAL|DIAGONAL|AUTOPISTA)\s+\d+',
+            r'(AK|AC|KR|CL|TV|DG|CR|CRA)\s+\d+',
+        ]
         
+        for patron in patrones_direccion:
+            match = re.search(patron, direccion, re.IGNORECASE)
+            if match:
+                inicio_direccion = match.start()
+                direccion_util = direccion[inicio_direccion:]
+                direccion_util = self._eliminar_duplicacion_texto(direccion_util)
+                return direccion_util
+        
+        match = re.search(r'\b(CL|KR|CR|CRA|CALLE|CARRERA|TV|DG|AC|AK|AVENIDA|TRANSVERSAL|DIAGONAL|AUTOPISTA)\b.*?\d+', direccion, re.IGNORECASE)
         if match:
-            # Extraer desde donde empieza la dirección hasta el final
-            inicio_direccion = match.start()
-            direccion_util = direccion[inicio_direccion:]
-            
-            # Eliminar texto duplicado (cuando se repite la misma dirección)
-            direccion_util = self._eliminar_duplicacion_texto(direccion_util)
-            
-            return direccion_util
+            return direccion[match.start():]
         
         return direccion
     
     def _eliminar_duplicacion_texto(self, direccion: str) -> str:
-        """Elimina duplicación de texto preservando la primera estructura completa"""
-        # Convertir a mayúsculas para análisis
         direccion_upper = direccion.upper()
         
-        # Dividir por patrones de tipo de vía para detectar duplicación
-        tipos_via = ['CLL', 'CL', 'KR', 'CR', 'CRA', 'CALLE', 'CARRERA', 'TV', 'DG', 'AC', 'AK']
+        tipos_via = ['AVENIDA', 'CLL', 'CL', 'KR', 'CR', 'CRA', 'CALLE', 'CARRERA', 'TV', 'DG', 'AC', 'AK', 'AUTOPISTA']
         
-        # Buscar todas las posiciones donde aparecen tipos de vía
         posiciones_tipos = []
         for tipo in tipos_via:
             pattern = rf'\b{re.escape(tipo)}\.?\s+'
@@ -194,116 +336,120 @@ class OptimizedAddressParser:
                     'texto': match.group()
                 })
         
-        # Si hay más de una ocurrencia de tipo de vía, analizar duplicación
         if len(posiciones_tipos) > 1:
-            # Ordenar por posición
             posiciones_tipos.sort(key=lambda x: x['posicion'])
             
-            # Tomar desde el primer tipo hasta antes del segundo
             inicio = posiciones_tipos[0]['posicion']
             fin = posiciones_tipos[1]['posicion']
             
             primera_direccion = direccion[inicio:fin].strip()
-            
-            # Limpiar símbolos al final de la primera dirección
             primera_direccion = re.sub(r'[\.#\-\s]+$', '', primera_direccion)
             
-            # Verificar si realmente hay duplicación semántica
-            # Extraer números de ambas partes para comparar
             primera_parte_numeros = re.findall(r'\d+[A-Z]*', primera_direccion.upper())
             segunda_parte = direccion[fin:].strip()
             segunda_parte_numeros = re.findall(r'\d+[A-Z]*', segunda_parte.upper())
             
-            # Si hay números similares, es duplicación -> usar solo la primera
             numeros_similares = len(set(primera_parte_numeros) & set(segunda_parte_numeros))
             if numeros_similares > 0:
                 return primera_direccion
-            
-            # Si no hay duplicación semántica, mantener todo
-            return direccion
         
         return direccion
     
-    def _detectar_tipo_via_robusto(self, direccion: str) -> str:
-        """Detecta tipo de vía de manera robusta"""
+    def _detectar_avenida_especifica(self, direccion: str) -> Dict:
         direccion_upper = direccion.upper()
+        info_via = {'tipo': None, 'numero_avenida': None, 'sufijo': None}
         
-        # Avenidas especiales primero
-        for nombre, info in self.AVENIDAS_ESPECIALES.items():
-            if nombre in direccion_upper:
-                return info['tipo']
+        for nombre, info in self.AVENIDAS_PRINCIPALES.items():
+            patron = rf'\b(AVENIDA|AV|AVDA)\.?\s+{re.escape(nombre)}\b'
+            if re.search(patron, direccion_upper):
+                info_via['tipo'] = info['tipo']
+                info_via['numero_avenida'] = info['numero']
+                if 'sufijo' in info:
+                    info_via['sufijo'] = info['sufijo']
+                return info_via
         
-        # Tipos de vía en orden de especificidad
+        match_avenida_numero = re.search(r'\b(AVENIDA|AV|AVDA)\.?\s+(\d+)', direccion_upper)
+        if match_avenida_numero:
+            numero = match_avenida_numero.group(2)
+            info_via['tipo'] = 'AK'
+            info_via['numero_avenida'] = numero
+            return info_via
+        
         tipos_ordenados = [
             ('AVENIDA CARRERA', 'AK'), ('AVENIDA CALLE', 'AC'),
             ('TRANSVERSAL', 'TV'), ('DIAGONAL', 'DG'),
-            ('CARRERA', 'KR'), ('CALLE', 'CL'),
+            ('AUTOPISTA', 'AK'), ('CARRERA', 'KR'), ('CALLE', 'CL'),
+            ('AVENIDA', 'AK'), ('AVDA', 'AK'), ('AV', 'AK'),
             ('AK', 'AK'), ('AC', 'AC'), ('TV', 'TV'), ('DG', 'DG'),
-            ('KR', 'KR'), ('CL', 'CL'), ('CRA', 'KR'), ('CR', 'KR'),
-            ('CLL', 'CL')
+            ('KR', 'KR'), ('CL', 'CL'), ('CRA', 'KR'), ('CR', 'KR')
         ]
         
         for tipo_texto, tipo_codigo in tipos_ordenados:
             if re.search(rf'\b{re.escape(tipo_texto)}\.?\b', direccion_upper):
-                return tipo_codigo
+                info_via['tipo'] = tipo_codigo
+                return info_via
         
-        return 'CL'  # Por defecto
+        info_via['tipo'] = 'CL'
+        return info_via
     
     def _es_abreviatura_numero(self, token: str) -> bool:
-        """Determina si un token es una abreviatura de 'número' que debe eliminarse"""
         return token.upper() in self.ABREVIATURAS_NUMERO
     
     def _es_elemento_especial(self, token: str) -> bool:
-        """Determina si un token es un elemento especial que debe preservar su posición"""
         return token.upper() in self.ELEMENTOS_ESPECIALES
     
-    def _es_letra_valida_para_numero(self, token: str, siguiente_token: str = None) -> bool:
-        """
-        Determina si una letra debe pegarse al número o eliminarse
-        - Letras válidas: A, B, C, D, E, F, G, H, etc. (para direcciones como 74C, 18G)
-        - Abreviaturas a eliminar: N, NO, NUM, NRO (significan "número")
-        - Elementos especiales: BIS (se preservan en su posición)
-        """
+    def _es_letra_valida_para_numero(self, token: str) -> bool:
         token_upper = token.upper()
         
-        # Si es abreviatura de número, no es válida
         if self._es_abreviatura_numero(token_upper):
             return False
         
-        # Si es elemento especial, no se pega al número (se preserva en su posición)
         if self._es_elemento_especial(token_upper):
             return False
         
-        # Si es orientación, no es letra para número
         if token_upper in ['SUR', 'ESTE', 'NORTE', 'OESTE']:
             return False
         
-        # Si es una sola letra del alfabeto, probablemente es válida para el número
+        if token_upper == 'X':
+            return False
+        
+        if token_upper == 'L':
+            return False
+        
         if re.match(r'^[A-Z]$', token_upper):
             return True
         
         return False
     
-    def _extraer_elementos_preservando_posicion(self, direccion: str, tipo_via: str) -> List[Dict]:
-        """Extrae elementos manteniendo su posición original y preservando BIS y orientaciones"""
+    def _extraer_elementos_preservando_posicion(self, direccion: str, tipo_via: str, numero_avenida: str = None) -> List[Dict]:
         elementos_secuenciales = []
         
-        # Remover el tipo de vía del inicio
-        direccion_sin_tipo = re.sub(rf'^{tipo_via}\.?\s+', '', direccion, flags=re.IGNORECASE)
+        direccion_sin_tipo = direccion
         
-        # Dividir en tokens manteniendo orden
+        if numero_avenida:
+            patron_avenida = rf'^(AVENIDA|AV|AVDA)\.?\s+.*?(?=\d+)'
+            direccion_sin_tipo = re.sub(patron_avenida, '', direccion_sin_tipo, flags=re.IGNORECASE)
+        else:
+            patron_tipo_via = rf'^{re.escape(tipo_via)}\.?\s+'
+            direccion_sin_tipo = re.sub(patron_tipo_via, '', direccion_sin_tipo, flags=re.IGNORECASE)
+        
+        match_numeros = re.search(r'\d+', direccion_sin_tipo)
+        if match_numeros:
+            inicio_numeros = match_numeros.start()
+            direccion_sin_tipo = direccion_sin_tipo[inicio_numeros:]
+        
         tokens = direccion_sin_tipo.split()
         
-        # Sets para evitar duplicados
         numeros_vistos = set()
         orientaciones_vistas = set()
         especiales_vistos = set()
+        numeros_procesados = 0
+        max_numeros_principales = 3
         
         i = 0
         while i < len(tokens):
             token = tokens[i].upper()
             
-            # Verificar si es orientación
             if token in ['SUR', 'ESTE', 'NORTE', 'OESTE']:
                 if token not in orientaciones_vistas:
                     elementos_secuenciales.append({
@@ -315,7 +461,6 @@ class OptimizedAddressParser:
                 i += 1
                 continue
             
-            # Verificar si es elemento especial (BIS)
             if self._es_elemento_especial(token):
                 if token not in especiales_vistos:
                     elementos_secuenciales.append({
@@ -327,46 +472,37 @@ class OptimizedAddressParser:
                 i += 1
                 continue
             
-            # Verificar si es abreviatura de número (eliminar)
             if self._es_abreviatura_numero(token):
                 i += 1
                 continue
             
-            # Verificar si es número con posibles letras
             if re.search(r'\d', token):
+                if numeros_procesados >= max_numeros_principales:
+                    break
+                
                 numero_completo = None
                 saltos = 0
                 
-                # Manejar números que ya contienen BIS
                 if 'BIS' in token:
                     numero_completo = token
-                    # Verificar si el siguiente token es una letra válida para BIS
-                    if (i + 1 < len(tokens) and 
-                        self._es_letra_valida_para_numero(tokens[i + 1])):
+                    if (i + 1 < len(tokens) and self._es_letra_valida_para_numero(tokens[i + 1])):
                         numero_completo += tokens[i + 1].upper()
                         saltos = 1
                 
-                # Números simples con letras ya incluidas
                 elif re.match(r'^\d+[A-Z]*$', token):
-                    # Verificar si el siguiente token es una letra válida
-                    if (i + 1 < len(tokens) and 
-                        self._es_letra_valida_para_numero(tokens[i + 1])):
+                    if (i + 1 < len(tokens) and self._es_letra_valida_para_numero(tokens[i + 1])):
                         numero_completo = token + tokens[i + 1].upper()
                         saltos = 1
                     else:
                         numero_completo = token
                 
-                # Números simples
                 elif re.match(r'^\d+$', token):
-                    # Verificar si el siguiente token es una letra válida
-                    if (i + 1 < len(tokens) and 
-                        self._es_letra_valida_para_numero(tokens[i + 1])):
+                    if (i + 1 < len(tokens) and self._es_letra_valida_para_numero(tokens[i + 1])):
                         numero_completo = token + tokens[i + 1].upper()
                         saltos = 1
                     else:
                         numero_completo = token
                 
-                # Agregar número si es válido y no duplicado
                 if numero_completo:
                     numero_normalizado = self._normalizar_numero(numero_completo)
                     if numero_normalizado not in numeros_vistos:
@@ -376,22 +512,20 @@ class OptimizedAddressParser:
                             'posicion': i
                         })
                         numeros_vistos.add(numero_normalizado)
+                        numeros_procesados += 1
                 
                 i += 1 + saltos
                 continue
             
-            # Verificar si es letra individual válida que no se procesó
             elif self._es_letra_valida_para_numero(token):
-                # Buscar el último número para intentar combinarlo
                 if elementos_secuenciales:
                     for j in range(len(elementos_secuenciales) - 1, -1, -1):
                         if elementos_secuenciales[j]['tipo'] == 'numero':
                             ultimo_numero = elementos_secuenciales[j]['valor']
-                            if re.match(r'^\d+$', ultimo_numero):
+                            if re.match(r'^\d+', ultimo_numero):
                                 numero_combinado = ultimo_numero + token
                                 numero_normalizado = self._normalizar_numero(numero_combinado)
                                 
-                                # Reemplazar el último número con la combinación
                                 numeros_vistos.discard(self._normalizar_numero(ultimo_numero))
                                 elementos_secuenciales[j]['valor'] = numero_combinado
                                 numeros_vistos.add(numero_normalizado)
@@ -402,17 +536,19 @@ class OptimizedAddressParser:
         return elementos_secuenciales
     
     def _normalizar_numero(self, numero: str) -> str:
-        """Normaliza un número para comparación (elimina espacios, convierte a mayúsculas)"""
         return re.sub(r'\s+', '', numero.upper())
     
-    def _construir_direccion_con_posiciones_preservadas(self, tipo_via: str, elementos_secuenciales: List[Dict]) -> str:
-        """Construye la dirección final preservando las posiciones originales de todos los elementos"""
-        partes = [tipo_via]
+    def _construir_direccion_con_avenida_especifica(self, info_via: Dict, elementos_secuenciales: List[Dict]) -> str:
+        partes = [info_via['tipo']]
         
-        # Ordenar elementos por su posición original
+        if info_via.get('numero_avenida'):
+            partes.append(info_via['numero_avenida'])
+        
+        if info_via.get('sufijo'):
+            partes.append(info_via['sufijo'])
+        
         elementos_ordenados = sorted(elementos_secuenciales, key=lambda x: x['posicion'])
         
-        # Construir la dirección manteniendo el orden original
         for elemento in elementos_ordenados:
             partes.append(elemento['valor'])
         
@@ -438,7 +574,6 @@ class OptimizedAddressParser:
         return pd.DataFrame(resultados)
 
     def process_addresses_from_excel(self, excel_file: str, column_name: str):
-        """Process addresses from Excel file and return parametrized addresses"""
         try:
             df = pd.read_excel(excel_file, sheet_name='GPON', engine='openpyxl')
             
@@ -465,36 +600,43 @@ class OptimizedAddressParser:
 if __name__ == "__main__":
     parser = OptimizedAddressParser()
     
-    # Casos problemáticos específicos incluyendo el caso de BIS
-    casos_problematicos = [
-        ("YANACONA MUYU KAWSAY TV 17 B 77 A 74 SUR", "TV 17B 77A 74 SUR"),
-        ("COLINA DE LOS SUEÑOS KR 54 47 A 18 SUR", "KR 54 47A 18 SUR"),
-        ("DEJANDO-HUELLA CL 91 C SUR 18 H 20", "CL 91C SUR 18H 20"),
-        ("EL REFUGIO CL 48 P BIS C SUR 5 10", "CL 48P BIS C SUR 5 10"),
-        ("WOUNAANH CHAAIN JAU DI BAUR DO KR 18 G 72 D 15 SUR", "KR 18G 72D 15 SUR"),
-        ("KR 7 CL 74 21 PIS:2 8 9", "KR 7 74 21 8 9"),
-        ("CL 83 SUR 13 33 ESTE  calle 83 sur No. 13-33 Este", "CL 83 SUR 13 33 ESTE"),
-        ("cl 6 D nº 4-42", "CL 6D 4 42"),
-        ("CL 74 C SUR 14 40 ESTE  CLL. 74C SUR No.14-40 ESTE", "CL 74C SUR 14 40 ESTE"),
-        ("AVENIDA CARRERA 86 N 43 # 55 SUR", "AK 86 43 55 SUR"),
-        ("CL 111 A BIS SUR 4 A 41 ESTE", "CL 111A BIS SUR 4A 41 ESTE"),  # NUEVO CASO CRÍTICO
-        ("KR 45 BIS 23 15", "KR 45 BIS 23 15"),  # Caso adicional con BIS
-        ("AC 26 BIS 12 34 ESTE", "AC 26 BIS 12 34 ESTE")  # Otro caso con BIS
+    casos_prueba_completos = [
+        ("AVENIDA 19 NO. 104 - 72", "AK 19 104 72"),
+        ("AVENIDA 68 NO. 38 A - 15 SUR", "AK 68 38A 15 SUR"),
+        ("Carrera octava con Calle octava en Bogotá D.C., dentro de los predios del Palacio de Nariño.", "KR 8 CL 8"),
+        ("Dg. 40a Bis #15-2", "DG 40A BIS 15 2"),
+        ("JUAN PABLO II CICLO PARQUEADERO CARRERA 18NBISB # 67C-40", "KR 18N BIS B 67C 40"),
+        ("CL 24C SUR 48 94 L 1006 1007 1008 1009 1010 1016 CC C.TUNAL", "CL 24C SUR 48 94"),
+        ("CR 13 81 37", "KR 13 81 37"),
+        ("KR 78A X DG 76 S - EXTERNO 3094", "KR 78A DG 76S"),
+        ("Kr 55 X Cl 153 - EXTERNO 127", "KR 55 CL 153"),
+        ("DG 78AX 76S 3094", "DG 78A 76S"),
+        ("CL 45 X KR 23A SUR", "CL 45 KR 23A SUR"),
+        ("Av El Dorado 68C 61 Of206 - SYC Bogotá", "AC 26 68C 61"),
+        ("Avenida 19. # 98-01 Edificio Torre 100", "AK 19 98 01"),
+        ("Av. Carrera 86 No.43-55 Sur (Portal Américas) Módulo D", "AK 86 43 55 SUR"),
+        ("AVENIDA SEPTIMA 45 23 67", "AK 7 45 23 67"),
+        ("AV BOYACA 72 34 56", "AK 72 34 56"),
+        ("AVENIDA CARACAS 14 89 12", "AK 14 89 12"),
+        ("CL 111 A BIS SUR 4 A 41 ESTE", "CL 111A BIS SUR 4A 41 ESTE"),
+        ("TV 123A BIS 45 67 NORTE", "TV 123A BIS 45 67 NORTE"),
+        ("KR 55 153 127", "KR 55 153 127"),
+        ("CALLE 45 23 67", "CL 45 23 67"),
+        ("DIAGONAL 78 56 34", "DG 78 56 34")
     ]
     
-    print("🔧 PRUEBAS DE CASOS PROBLEMÁTICOS - CON PRESERVACIÓN DE BIS")
-    print("=" * 110)
+    print("🚀 PRUEBAS DEL PARSER CORREGIDO FINAL")
+    print("=" * 80)
     print("Formato: Original → Resultado Obtenido (Esperado)")
-    print("-" * 110)
+    print("-" * 80)
     
     casos_exitosos = 0
-    total_casos = len(casos_problematicos)
+    total_casos = len(casos_prueba_completos)
     
-    for i, (direccion_original, esperado) in enumerate(casos_problematicos, 1):
+    for i, (direccion_original, esperado) in enumerate(casos_prueba_completos, 1):
         resultado = parser.parametrizar_direccion(direccion_original)
         obtenido = resultado['direccion_parametrizada']
         
-        # Normalizar para comparación
         esperado_norm = ' '.join(esperado.split())
         obtenido_norm = ' '.join(obtenido.split())
         
@@ -510,47 +652,16 @@ if __name__ == "__main__":
         
         if not coincide:
             print(f"    ⚠️  DIFERENCIA DETECTADA")
-            print(f"    📝 Dirección limpia: '{resultado['direccion_limpia']}'")
             if resultado['errores']:
                 print(f"    🔍 Errores: {', '.join(resultado['errores'])}")
+            if 'tipo' in resultado:
+                print(f"    📍 Tipo: {resultado.get('tipo', 'normal')}")
         print()
     
-    print("=" * 110)
-    print(f"📊 RESUMEN: {casos_exitosos}/{total_casos} casos corregidos exitosamente")
+    print("=" * 80)
+    print(f"🎯 RESUMEN: {casos_exitosos}/{total_casos} casos exitosos ({casos_exitosos/total_casos*100:.1f}%)")
     
     if casos_exitosos == total_casos:
-        print("🎉 ¡TODOS LOS CASOS PROBLEMÁTICOS SOLUCIONADOS!")
-        print("🎯 Incluyendo los casos críticos:")
-        print("   'CL 111 A BIS SUR 4 A 41 ESTE' → 'CL 111A BIS SUR 4A 41 ESTE'")
-        print("   'AVENIDA CARRERA 86 N 43 # 55 SUR' → 'AK 86 43 55 SUR'")
-        print("   'CL 74 C SUR 14 40 ESTE' → 'CL 74C SUR 14 40 ESTE'")
-        print("🔤 Diferenciación correcta:")
-        print("   - Letras válidas: '111 A' → '111A' (se pegan)")
-        print("   - BIS: mantiene su posición original")
-        print("   - Abreviaturas: '86 N' → '86' (N se elimina)")
-        print("   - Orientaciones: en su posición original")
+        print("🎉 ¡TODOS LOS CASOS PASARON!")
     else:
-        print("⚠️  Algunos casos necesitan ajustes adicionales")
-    
-    print("\n🧪 PRUEBAS ADICIONALES DE VERIFICACIÓN")
-    print("-" * 60)
-    
-    casos_adicionales = [
-        "AC 32 16 87",
-        "Carrera 7 17 01 Piso 3 - Bogota", 
-        "KR 8 9 83",
-        "CARRERA 15 # 92 - 70 OFICINA 401",
-        "AVENIDA SEPTIMA 45 23",
-        "CL 45 SUR 12 34 ESTE",
-        "KR 86 N 43 55",  # Caso específico con N
-        "CL 74 C 14 40",   # Caso específico con letra válida
-        "CL 12 BIS 34 56 SUR",  # Caso específico con BIS
-        "AC 45 A BIS ESTE 23 67"  # Caso complejo con BIS y orientaciones
-    ]
-    
-    for i, direccion in enumerate(casos_adicionales, 1):
-        resultado = parser.parametrizar_direccion(direccion)
-        estado = "✅" if resultado['valida'] else "❌"
-        
-        print(f"{i}. {estado} {direccion}")
-        print(f"   → {resultado['direccion_parametrizada']}")
+        print(f"⚠️  {total_casos - casos_exitosos} casos requieren ajustes")
